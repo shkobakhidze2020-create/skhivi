@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<!-- © 2026 შალვა — „სხივი": კონცეფცია, პროდუქტ-დიზაინი, UX. ყველა უფლება დაცულია. -->
+
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>სხივი — AI ფოტოარქივისტი · პროტოტიპი</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Georgian:wght@500;700&family=Noto+Sans+Georgian:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   სხივი · SKHIVI — AI Photo Workflow prototype
+   Design language: "darkroom archivist" — deep blue-charcoal,
+   amber safelight (human actions), cyan (AI / data),
+   photos "develop" when AI processes them.
+   ============================================================ */
+:root{
+  --ink:      #101613;   /* backdrop */
+  --slate:    #17211b;   /* app base */
+  --card:     #1e2a23;   /* surfaces */
+  --card-2:   #263429;   /* raised surfaces */
+  --line:     #33463a;   /* hairlines */
+  --paper:    #eef3ec;   /* primary text */
+  --muted:    #97a89b;   /* secondary text */
+  --faint:    #5f7264;   /* tertiary */
+  --amber:    #e0a44c;   /* safelight — human action */
+  --amber-dk: #a5722a;
+  --cyan:     #76c89c;   /* AI / data */
+  --cyan-dim: rgba(118,200,156,.14);
+  --amber-dim:rgba(224,164,76,.14);
+  --danger:   #d97057;
+  --ok:       #8fd7a4;
+  --r-lg: 22px; --r-md: 16px; --r-sm: 10px;
+  --font-body: 'Noto Sans Georgian', system-ui, sans-serif;
+  --font-disp: 'Noto Serif Georgian', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 700px at 70% -10%, #1c2921 0%, transparent 60%),
+    radial-gradient(900px 600px at 10% 110%, #161f19 0%, transparent 55%),
+    var(--ink);
+  font-family:var(--font-body);
+  color:var(--paper);
+  display:flex;align-items:center;justify-content:center;
+  min-height:100dvh;
+  overflow:hidden;
+}
+/* ---------- stage & desktop presentation ---------- */
+.stage{display:flex;align-items:center;justify-content:center;gap:64px;width:100%;padding:24px}
+.stage-note{max-width:300px;display:flex;flex-direction:column;gap:18px}
+.stage-note .brand{font-family:var(--font-disp);font-size:44px;font-weight:700;letter-spacing:.01em;line-height:1.05}
+.stage-note .brand em{font-style:normal;color:var(--amber)}
+.stage-note p{color:var(--muted);font-size:14.5px;line-height:1.65}
+.stage-note .meta{font-family:var(--font-mono);font-size:11px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase}
+.stage-note .pill-row{display:flex;gap:8px;flex-wrap:wrap}
+.stage-note .pill{font-size:12px;color:var(--cyan);background:var(--cyan-dim);border:1px solid rgba(118,200,156,.25);padding:5px 11px;border-radius:99px}
+/* ---------- phone frame ---------- */
+.phone{
+  position:relative;
+  width:min(392px,100vw);
+  height:min(844px,100dvh);
+  background:var(--slate);
+  border-radius:46px;
+  border:1px solid #2e3d33;
+  box-shadow:
+    0 40px 90px -30px rgba(0,0,0,.7),
+    0 0 0 8px #0b110d,
+    0 0 120px -40px rgba(224,164,76,.18);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.phone::after{ /* film grain */
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:60;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+@media (max-width:900px){
+  .stage{gap:0;padding:0}
+  .stage-note{display:none}
+  .phone{border-radius:0;box-shadow:none;border:none;width:100vw;height:100dvh}
+}
+/* ---------- status bar ---------- */
+.statusbar{display:flex;justify-content:space-between;align-items:center;padding:16px 26px 8px;font-family:var(--font-mono);font-size:12px;color:var(--muted);flex:0 0 auto}
+.statusbar .cam{width:84px;height:24px;background:#0b110d;border-radius:99px;margin:0 auto;position:absolute;left:50%;transform:translateX(-50%);top:12px}
+/* ---------- screens ---------- */
+.screens{flex:1;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+.screen.active{display:flex;animation:screenIn .38s cubic-bezier(.22,.9,.3,1)}
+@keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.screen-head{padding:14px 22px 12px;flex:0 0 auto}
+.screen-head .eyebrow{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.18em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px}
+.screen-head h1{font-family:var(--font-disp);font-weight:700;font-size:26px;line-height:1.15}
+.screen-head .sub{color:var(--muted);font-size:13px;margin-top:5px;line-height:1.5}
+.screen-body{flex:1;overflow-y:auto;padding:4px 18px 110px;scrollbar-width:none}
+.screen-body::-webkit-scrollbar{display:none}
+/* ---------- bottom nav ---------- */
+.tabbar{
+  position:absolute;left:14px;right:14px;bottom:14px;z-index:50;
+  display:flex;justify-content:space-around;align-items:center;
+  background:rgba(18,24,20,.82);backdrop-filter:blur(18px);
+  border:1px solid var(--line);border-radius:24px;padding:9px 6px;
+  box-shadow:0 14px 34px -14px rgba(0,0,0,.7);
+}
+.tab{background:none;border:none;color:var(--faint);font-family:var(--font-body);font-size:9.5px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:5px 6px;border-radius:14px;transition:color .25s, background .25s;position:relative}
+.tab svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--amber);background:var(--amber-dim)}
+.tab .badge{position:absolute;top:1px;right:3px;background:var(--amber);color:#241703;font-family:var(--font-mono);font-size:9px;font-weight:600;min-width:16px;height:16px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.tab .badge.hide{display:none}
+/* ---------- shared components ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 11px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--card-2)}
+.chip.ai{color:var(--cyan);background:var(--cyan-dim);border-color:rgba(118,200,156,.3)}
+.chip.human{color:var(--amber);background:var(--amber-dim);border-color:rgba(224,164,76,.3)}
+.btn{font-family:var(--font-body);font-weight:600;font-size:13.5px;border:none;border-radius:14px;padding:11px 16px;cursor:pointer;transition:transform .15s, filter .2s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:scale(.96)}
+.btn-amber{background:linear-gradient(160deg,var(--amber),#c9822e);color:#241703;box-shadow:0 10px 26px -10px rgba(224,164,76,.55)}
+.btn-ghost{background:var(--card-2);color:var(--muted);border:1px solid var(--line)}
+.btn-danger{background:rgba(217,112,87,.14);color:var(--danger);border:1px solid rgba(217,112,87,.3)}
+.mono{font-family:var(--font-mono)}
+/* confidence meter */
+.meter{height:4px;border-radius:99px;background:var(--line);overflow:hidden;flex:1}
+.meter i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--cyan),#a3e0bd);transition:width 1.1s cubic-bezier(.25,.9,.3,1)}
+.meter.mid i{background:linear-gradient(90deg,var(--amber),#f6c983)}
+/* toast */
+.toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,20px);background:#0e1510;border:1px solid var(--line);color:var(--paper);font-size:13px;padding:11px 18px;border-radius:99px;opacity:0;pointer-events:none;transition:.35s;z-index:70;white-space:nowrap;box-shadow:0 14px 30px -10px rgba(0,0,0,.7);display:flex;gap:8px;align-items:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast .dot{width:7px;height:7px;border-radius:99px;background:var(--ok)}
+/* ---------- photo thumbnails (CSS scenes) ---------- */
+.ph{position:relative;border-radius:var(--r-md);overflow:hidden;background:#0b110d}
+.ph::before{content:"";position:absolute;inset:0;background:inherit}
+.ph .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.9}
+.ph svg{width:42%;height:42%;stroke:rgba(255,255,255,.85);fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.sc-sea{background:linear-gradient(180deg,#f6b26b 0%,#e07856 38%,#2f5d78 62%,#1d3b52 100%)}
+.sc-mtn{background:linear-gradient(180deg,#aec6d8 0%,#6d8aa3 45%,#33465c 75%,#22303f 100%)}
+.sc-city{background:linear-gradient(180deg,#1b2334 0%,#33270f 55%,#684a15 100%)}
+.sc-portrait{background:radial-gradient(120% 90% at 50% 20%,#c98a5b 0%,#7d4f33 55%,#3a2a22 100%)}
+.sc-doc{background:linear-gradient(160deg,#d8dde3 0%,#b4bcc7 60%,#8d97a5 100%)}
+.sc-forest{background:linear-gradient(180deg,#7fae8f 0%,#3d6b52 55%,#1f3a2e 100%)}
+.sc-snow{background:linear-gradient(180deg,#e7edf4 0%,#b9cbdd 55%,#7b93ac 100%)}
+.sc-bday{background:radial-gradient(120% 100% at 30% 20%,#e78bb2 0%,#9c4f8a 55%,#3d2647 100%)}
+.sc-food{background:radial-gradient(110% 100% at 50% 30%,#f2c98a 0%,#c98a4e 55%,#6e4426 100%)}
+.sc-street{background:linear-gradient(180deg,#8fa3b8 0%,#5d7186 50%,#33404f 100%)}
+.ph .num{position:absolute;top:8px;left:10px;font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.65);letter-spacing:.1em}
+/* developing (signature animation) */
+.developing{filter:blur(9px) sepia(.9) brightness(.75);transition:filter 1.4s ease}
+.developed{filter:none}
+.scanline::after{content:"";position:absolute;left:0;right:0;top:-30%;height:26%;z-index:5;
+  background:linear-gradient(180deg,transparent,rgba(118,200,156,.35),transparent);
+  animation:scan 1.5s ease forwards}
+@keyframes scan{to{top:110%}}
+/* ================= DASHBOARD ================= */
+.sec-lbl{font-family:var(--font-mono);font-size:10px;color:var(--faint);letter-spacing:.16em;text-transform:uppercase;margin:6px 4px 9px}
+.hello{display:flex;justify-content:space-between;align-items:flex-start}
+.ring-wrap{display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;margin-bottom:12px}
+.ring{position:relative;width:84px;height:84px;flex:0 0 auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .track{stroke:var(--line);fill:none;stroke-width:7}
+.ring .val{stroke:url(#gradRing);fill:none;stroke-width:7;stroke-linecap:round;stroke-dasharray:226;stroke-dashoffset:226;transition:stroke-dashoffset 1.6s cubic-bezier(.25,.9,.3,1)}
+.ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:16px;font-weight:600;color:var(--cyan)}
+.ring-txt h3{font-size:15px;font-weight:600;margin-bottom:3px}
+.ring-txt p{font-size:12.5px;color:var(--muted);line-height:1.5}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 15px;position:relative;overflow:hidden}
+.stat.warn{border-color:rgba(224,164,76,.4)}
+.stat .k{font-family:var(--font-mono);font-size:25px;font-weight:600;letter-spacing:-.02em}
+.stat.warn .k{color:var(--amber)}
+.stat .l{font-size:11.5px;color:var(--muted);margin-top:3px}
+.flow{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;margin-bottom:14px}
+.flow h4{font-size:12px;color:var(--faint);letter-spacing:.12em;text-transform:uppercase;font-family:var(--font-mono);margin-bottom:12px}
+.flow-line{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow:hidden}
+.fstep{flex:1;text-align:center;font-size:9.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px;align-items:center;min-width:0}
+.fstep .fd{width:9px;height:9px;border-radius:99px;background:var(--line);transition:.4s}
+.fstep.on .fd{background:var(--cyan);box-shadow:0 0 10px rgba(118,200,156,.7)}
+.fstep.on{color:var(--paper)}
+.farrow{color:var(--faint);font-size:10px;flex:0 0 auto;transform:translateY(-8px)}
+.cta-big{width:100%;padding:16px;font-size:15px;border-radius:18px;margin-top:2px}
+.storage{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:var(--muted)}
+.storage b{color:var(--paper);font-family:var(--font-mono);font-weight:600}
+/* processing overlay */
+.proc{position:absolute;inset:0;background:rgba(14,19,16,.94);backdrop-filter:blur(10px);z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;padding:34px;text-align:center}
+.proc.show{display:flex;animation:screenIn .3s}
+.proc .ph{width:150px;height:150px;margin-bottom:26px}
+.proc h2{font-family:var(--font-disp);font-size:21px;margin-bottom:20px}
+.proc-steps{display:flex;flex-direction:column;gap:11px;width:100%;max-width:270px;text-align:left}
+.pstep{display:flex;align-items:center;gap:11px;font-size:13.5px;color:var(--faint);transition:.3s}
+.pstep .ic{width:22px;height:22px;border-radius:99px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;flex:0 0 auto;transition:.3s}
+.pstep.done{color:var(--paper)}
+.pstep.done .ic{border-color:var(--cyan);background:var(--cyan-dim);color:var(--cyan)}
+.pstep.run{color:var(--cyan)}
+.pstep.run .ic{border-color:var(--cyan);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(118,200,156,.12)}}
+.proc .result{margin-top:24px;display:none;flex-direction:column;gap:14px;align-items:center}
+.proc .result.show{display:flex;animation:screenIn .4s}
+.proc .result p{color:var(--muted);font-size:13.5px;line-height:1.6}
+.proc .result b{color:var(--amber)}
+/* ================= INBOX ================= */
+.inbox-top{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px;margin-bottom:12px;transition:transform .4s, opacity .4s, filter .4s}
+.icard.leave{transform:translateX(70px) scale(.95);opacity:0}
+.icard.leave-del{transform:scale(.9);opacity:0;filter:grayscale(1)}
+.icard-row{display:flex;gap:12px}
+.icard .ph{width:92px;height:92px;flex:0 0 auto}
+.icard-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.icard-info .chips{display:flex;gap:5px;flex-wrap:wrap}
+.icard-info .chip{font-size:10.5px;padding:3.5px 9px}
+.conf-row{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--cyan)}
+.conf-row.mid{color:var(--amber)}
+.icard-actions{display:flex;gap:7px;margin-top:11px}
+.icard-actions .btn{flex:1;padding:9px 6px;font-size:12px;border-radius:11px}
+.ai-note{font-size:12px;color:var(--muted);line-height:1.5;background:var(--card-2);border-radius:var(--r-sm);padding:8px 10px;border-left:2px solid var(--cyan)}
+.ai-note b{color:var(--paper);font-weight:600}
+.empty{padding:44px 20px;text-align:center;color:var(--muted);display:none;flex-direction:column;align-items:center;gap:12px}
+.empty.show{display:flex;animation:screenIn .4s}
+.empty .big{font-size:38px}
+.empty h3{font-family:var(--font-disp);color:var(--paper);font-size:19px}
+.empty p{font-size:13px;line-height:1.6}
+/* edit mode */
+.edit-panel{display:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.edit-panel.show{display:block;animation:screenIn .3s}
+.edit-panel .lbl{font-size:11px;color:var(--faint);margin-bottom:7px;font-family:var(--font-mono);letter-spacing:.1em}
+.edit-panel .opts{display:flex;gap:6px;flex-wrap:wrap}
+.edit-panel .chip{cursor:pointer}
+.edit-panel .chip.sel{color:var(--amber);background:var(--amber-dim);border-color:rgba(224,164,76,.45)}
+/* ================= LIBRARY ================= */
+.filter-row{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.fchip{flex:0 0 auto;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12.5px;padding:8px 15px;border-radius:99px;font-family:var(--font-body);transition:.25s}
+.fchip.active{color:#241703;background:var(--amber);border-color:var(--amber);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.grid .ph{aspect-ratio:1;cursor:pointer;transition:transform .25s, opacity .35s}
+.grid .ph:active{transform:scale(.95)}
+.grid .ph.hide{display:none}
+.grid .ph .tagdots{position:absolute;bottom:7px;left:8px;display:flex;gap:3px}
+.grid .ph .tagdots i{width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.8)}
+.lib-count{font-family:var(--font-mono);font-size:11px;color:var(--faint);margin-bottom:10px;letter-spacing:.08em}
+.relation{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px;margin-bottom:13px}
+.relation h4{font-size:13px;margin-bottom:9px}
+.relation .chips{display:flex;gap:6px;flex-wrap:wrap}
+.relation p{font-size:11.5px;color:var(--faint);margin-top:9px;line-height:1.5}
+/* ================= SEARCH ================= */
+.searchbox{display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:6px 6px 6px 16px;align-items:center;margin-bottom:12px}
+.searchbox input{flex:1;background:none;border:none;outline:none;color:var(--paper);font-family:var(--font-body);font-size:14px;min-width:0}
+.searchbox input::placeholder{color:var(--faint)}
+.searchbox .btn{padding:10px 14px;border-radius:13px}
+.sugg{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+.sugg .chip{cursor:pointer;transition:.2s}
+.sugg .chip:active{transform:scale(.95)}
+.airesp{display:none;background:var(--card);border:1px solid rgba(118,200,156,.3);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;gap:11px;align-items:flex-start}
+.airesp.show{display:flex;animation:screenIn .35s}
+.airesp .av{width:30px;height:30px;border-radius:99px;background:var(--cyan-dim);border:1px solid rgba(118,200,156,.4);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--cyan);font-size:13px}
+.airesp p{font-size:13.5px;line-height:1.6;color:var(--paper)}
+.airesp .found{font-family:var(--font-mono);color:var(--cyan);font-weight:600}
+/* ================= ASSISTANT ================= */
+.chat{display:flex;flex-direction:column;gap:11px;padding-bottom:8px}
+.msg{max-width:82%;padding:11px 14px;border-radius:18px;font-size:13.5px;line-height:1.6;animation:screenIn .3s}
+.msg.user{align-self:flex-end;background:var(--amber);color:#241703;border-bottom-right-radius:6px;font-weight:500}
+.msg.ai{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:6px}
+.msg.ai b{color:var(--cyan);font-weight:600}
+.msg .mini-grid{display:flex;gap:5px;margin-top:9px}
+.msg .mini-grid .ph{width:52px;height:52px}
+.typing{align-self:flex-start;display:none;gap:4px;padding:13px 16px;background:var(--card);border:1px solid var(--line);border-radius:18px;border-bottom-left-radius:6px}
+.typing.show{display:flex}
+.typing i{width:6px;height:6px;border-radius:99px;background:var(--faint);animation:tp 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes tp{50%{transform:translateY(-4px);background:var(--cyan)}}
+.quick{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+.quick .chip{cursor:pointer}
+/* ================= ONBOARDING ================= */
+.onb{position:absolute;inset:0;background:var(--slate);z-index:90;display:flex;flex-direction:column;overflow:hidden}
+.onb.hide{display:none}
+.onb-top{display:flex;justify-content:space-between;align-items:center;padding:18px 22px 0;min-height:44px}
+.onb-dots{display:flex;gap:6px}
+.onb-dots i{width:7px;height:7px;border-radius:99px;background:var(--line);transition:.3s}
+.onb-dots i.on{background:var(--amber);width:20px}
+.onb-skip{background:none;border:none;color:var(--faint);font-family:var(--font-body);font-size:13px;cursor:pointer;padding:6px 4px}
+.onb-skip:hover{color:var(--muted)}
+.oslide{position:absolute;inset:44px 0 0;display:none;flex-direction:column;padding:10px 26px 30px;text-align:center;overflow-y:auto;scrollbar-width:none}
+.oslide::-webkit-scrollbar{display:none}
+.oslide.active{display:flex;animation:screenIn .45s}
+.oslide .spacer{flex:1}
+.oslide h2{font-family:var(--font-disp);font-size:27px;line-height:1.2;margin-bottom:12px}
+.oslide h2 em{font-style:normal;color:var(--amber)}
+.oslide .otxt{color:var(--muted);font-size:14px;line-height:1.7;max-width:300px;margin:0 auto}
+.oslide .btn-amber{width:100%;padding:15px;font-size:14.5px;margin-top:18px;flex:0 0 auto}
+.oslide .btn-ghost{width:100%;padding:13px;margin-top:9px}
+/* splash */
+.splash-mark{display:flex;justify-content:center;margin-bottom:14px;animation:markSpin 1.7s cubic-bezier(.2,.8,.25,1)}
+.splash-mark svg{filter:drop-shadow(0 0 26px rgba(224,164,76,.4))}
+@keyframes markSpin{from{transform:rotate(-150deg) scale(.5);opacity:0}to{transform:none;opacity:1}}
+.stage-mark{margin-bottom:-6px}
+
+.splash-logo{font-family:var(--font-disp);font-size:58px;font-weight:700;letter-spacing:.01em}
+.splash-logo em{font-style:normal;color:var(--amber)}
+.splash-tag{color:var(--muted);font-size:13.5px;margin-top:14px;letter-spacing:.02em}
+.splash-wrap{position:relative;padding:26px 30px;border-radius:28px;overflow:hidden}
+/* chaos / order */
+.chaos{position:relative;height:220px;margin:8px auto 18px;width:100%;max-width:280px;flex:0 0 auto}
+.chaos .ph{position:absolute;width:74px;height:74px;transition:all .9s cubic-bezier(.3,.9,.25,1);box-shadow:0 10px 26px -8px rgba(0,0,0,.6)}
+.order-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:8px auto 18px;flex:0 0 auto}
+.order-grid .ph{aspect-ratio:1;opacity:0;transform:rotate(var(--rr)) scale(.6) translateY(20px)}
+.oslide.active .order-grid .ph{animation:settle .8s cubic-bezier(.25,.9,.3,1) forwards;animation-delay:var(--dd)}
+@keyframes settle{to{opacity:1;transform:none}}
+.order-lbls{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+/* search demo */
+.demo-search{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 17px;text-align:left;font-size:14px;max-width:300px;margin:14px auto 0;width:100%;min-height:50px;display:flex;align-items:center;gap:9px}
+.demo-search .cur{display:inline-block;width:2px;height:17px;background:var(--amber);animation:blink 1s steps(1) infinite;vertical-align:middle}
+@keyframes blink{50%{opacity:0}}
+.demo-resp{margin:12px auto 0;max-width:300px;width:100%}
+.demo-resp .airesp{margin-bottom:0}
+/* auth */
+.auth-btns{display:flex;flex-direction:column;gap:10px;margin-top:20px;flex:0 0 auto}
+.auth-btn{display:flex;align-items:center;justify-content:center;gap:11px;background:var(--card);border:1px solid var(--line);color:var(--paper);border-radius:15px;padding:14px;font-family:var(--font-body);font-size:14px;font-weight:600;cursor:pointer;transition:border-color .2s, transform .15s}
+.auth-btn:active{transform:scale(.97)}
+.auth-btn:hover{border-color:var(--faint)}
+.auth-btn svg{width:19px;height:19px;flex:0 0 auto}
+.auth-btn.mail{background:var(--card-2)}
+.guest-link{background:none;border:none;color:var(--cyan);font-family:var(--font-body);font-size:13.5px;cursor:pointer;margin-top:16px;padding:6px}
+.legal{font-size:10.5px;color:var(--faint);margin-top:12px;line-height:1.6}
+/* permission */
+.perm-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;margin:16px auto 0;max-width:300px;width:100%}
+.perm-card .pic{font-size:36px;margin-bottom:10px}
+.perm-card p{font-size:12.5px;color:var(--muted);line-height:1.65}
+.perm-card p b{color:var(--paper)}
+/* onboarding trust */
+.onb-trust{max-width:310px;margin:0 auto;width:100%}
+/* first scan */
+.scan-count{font-family:var(--font-mono);font-size:15px;color:var(--cyan);margin:14px 0 18px}
+.scan-count b{font-size:23px;font-weight:600}
+.scan-result{display:none;flex-direction:column;gap:14px;margin-top:18px}
+.scan-result.show{display:flex;animation:screenIn .4s}
+.scan-result .found-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.scan-result .fcell{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 8px}
+.scan-result .fcell .k{font-family:var(--font-mono);font-size:19px;font-weight:600;color:var(--amber)}
+.scan-result .fcell .l{font-size:10px;color:var(--muted);margin-top:2px}
+/* ================= LIVING WORKSPACE (SESSIONS) ================= */
+.sess-hero{background:linear-gradient(150deg,var(--card) 0%,#1e2836 100%);border:1px solid rgba(118,200,156,.3);border-radius:var(--r-lg);padding:15px 16px;margin-bottom:12px}
+.sess-hero .ai-line{display:flex;gap:9px;align-items:center;font-size:12.5px;color:var(--cyan);margin-bottom:11px}
+.sess-hero .ai-line .av{width:26px;height:26px;border-radius:99px;background:var(--cyan-dim);border:1px solid rgba(118,200,156,.4);display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto}
+.scard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px;margin-bottom:11px;cursor:pointer;transition:border-color .25s, transform .15s}
+.scard:active{transform:scale(.98)}
+.scard.hot{border-color:rgba(224,164,76,.45);box-shadow:0 10px 30px -16px rgba(224,164,76,.35)}
+.scard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.scard-top .sn{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;margin-bottom:4px}
+.scard-top h3{font-size:16.5px;font-weight:600}
+.scard-top .stime{font-family:var(--font-mono);font-size:11px;color:var(--amber);background:var(--amber-dim);border:1px solid rgba(224,164,76,.3);padding:5px 9px;border-radius:9px;white-space:nowrap}
+.scard .sloc{font-size:12px;color:var(--muted);margin-bottom:11px;display:flex;align-items:center;gap:5px}
+.sstats{display:flex;gap:6px;flex-wrap:wrap}
+.sstat{display:flex;align-items:baseline;gap:5px;background:var(--card-2);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.sstat b{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--paper)}
+.sstat span{font-size:10px;color:var(--muted)}
+.sstat.ok b{color:var(--cyan)}
+.sess-phil{text-align:center;color:var(--faint);font-size:12px;font-style:italic;padding:16px 20px;line-height:1.6}
+/* session detail overlay */
+.timeline{position:relative;margin:6px 0 0 8px;padding-left:24px}
+.timeline::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:linear-gradient(180deg,var(--cyan),var(--amber));border-radius:99px;opacity:.5}
+.trow{position:relative;padding:0 0 18px;opacity:0;transform:translateX(12px);transition:.5s}
+.trow.in{opacity:1;transform:none}
+.trow::before{content:"";position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:99px;background:var(--slate);border:2.5px solid var(--cyan)}
+.trow.amb::before{border-color:var(--amber)}
+.trow .tt{font-family:var(--font-mono);font-size:11px;color:var(--cyan);margin-bottom:2px}
+.trow.amb .tt{color:var(--amber)}
+.trow .tl{font-size:13.5px;line-height:1.5}
+.trow .td{font-size:11.5px;color:var(--muted);margin-top:1px}
+.trow .mini-grid{display:flex;gap:5px;margin-top:8px}
+.trow .mini-grid .ph{width:46px;height:46px}
+/* ================= PHOTO DNA ================= */
+.dna-net{margin:4px 0 10px}
+.dna-net svg{width:100%;height:auto;display:block}
+.dna-net .lnk{stroke:rgba(118,200,156,.4);stroke-width:1.2;stroke-dasharray:130;stroke-dashoffset:130}
+.asec.in .dna-net .lnk{animation:draw 1.1s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.dna-net .nd{fill:var(--card-2);stroke:var(--line);stroke-width:1.2}
+.dna-net .nd.core{fill:var(--amber-dim);stroke:var(--amber);stroke-width:1.6}
+.dna-net text{fill:var(--muted);font-family:var(--font-body);font-size:8.5px;text-anchor:middle}
+.dna-net .core-t{fill:var(--amber);font-weight:600}
+.dna-cta{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cyan-dim);border:1px solid rgba(118,200,156,.3);border-radius:var(--r-sm);padding:10px 12px}
+.dna-cta p{font-size:12px;line-height:1.5;color:var(--paper)}
+.dna-cta p b{color:var(--cyan)}
+.dna-cta .btn{padding:8px 13px;font-size:11.5px;border-radius:10px;flex:0 0 auto}
+/* ================= SECOND BRAIN ================= */
+.sbflow{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.sb-b{display:flex;gap:11px;align-items:flex-start;background:var(--card);border:1px solid rgba(118,200,156,.3);border-radius:var(--r-lg);padding:13px 15px;animation:screenIn .4s}
+.sb-b .av{width:30px;height:30px;border-radius:99px;background:var(--cyan-dim);border:1px solid rgba(118,200,156,.4);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--cyan);font-size:13px}
+.sb-b .bt{font-size:13.5px;line-height:1.65}
+.sb-b .bt b{color:var(--cyan);font-weight:600}
+.sb-b .bt .amb{color:var(--amber);font-weight:600}
+.sb-b.q{border-color:rgba(224,164,76,.35);background:linear-gradient(150deg,var(--card),#2a2416)}
+.sb-b.q .av{background:var(--amber-dim);border-color:rgba(224,164,76,.4);color:var(--amber)}
+.sb-u{align-self:flex-end;background:var(--amber);color:#241703;font-size:13.5px;font-weight:500;padding:10px 15px;border-radius:18px;border-bottom-right-radius:6px;max-width:85%;animation:screenIn .3s}
+.sb-replies{display:flex;gap:7px;flex-wrap:wrap;animation:screenIn .35s}
+.sb-replies .chip{cursor:pointer;font-size:12.5px;padding:8px 13px;transition:.2s}
+.sb-replies .chip:active{transform:scale(.95)}
+.pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pick{cursor:pointer;transition:transform .2s}
+.pick:active{transform:scale(.95)}
+.pick .ph{aspect-ratio:1;margin-bottom:5px}
+.pick .pd{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:center}
+.pick.sel .ph{outline:2px solid var(--amber);outline-offset:2px}
+.pick.sel .pd{color:var(--amber)}
+.sb-learn{display:flex;gap:9px;align-items:center;background:var(--cyan-dim);border:1px solid rgba(118,200,156,.35);border-radius:var(--r-md);padding:10px 13px;font-size:12px;color:var(--paper);line-height:1.55;animation:screenIn .4s}
+.sb-learn .ic{font-size:15px;flex:0 0 auto}
+/* ================= OSTATI (SHOT COACH) ================= */
+.coach-toggle{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;border-top:1px dashed var(--line);margin-top:11px;padding:10px 2px 0;color:var(--cyan);font-family:var(--font-body);font-size:12.5px;font-weight:600;cursor:pointer}
+.coach-toggle .ar{margin-left:auto;transition:transform .3s;font-size:11px}
+.coach-toggle.open .ar{transform:rotate(90deg)}
+.coach{display:none;margin-top:9px}
+.coach.show{display:block;animation:screenIn .3s}
+.coach-tip{background:var(--card-2);border:1px solid var(--line);border-left:2px solid var(--cyan);border-radius:var(--r-sm);padding:11px 13px;font-size:12.5px;line-height:1.65;color:var(--paper)}
+.coach-tip b{color:var(--cyan)}
+.coach-nav{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.coach-nav .cn{font-family:var(--font-mono);font-size:10.5px;color:var(--faint)}
+.coach-nav button{background:var(--card-2);border:1px solid var(--line);color:var(--muted);font-family:var(--font-body);font-size:11.5px;padding:6px 12px;border-radius:9px;cursor:pointer}
+.coach-personal{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:11px;color:var(--muted);line-height:1.55}
+.coach-personal .ic{flex:0 0 auto}
+.coach-personal b{color:var(--amber)}
+/* demo tour */
+.tourbox{position:absolute;left:14px;right:14px;bottom:88px;z-index:72;background:linear-gradient(150deg,#2b2210,#241a08);border:1px solid rgba(224,164,76,.5);border-radius:18px;padding:13px 15px;display:none;gap:10px;align-items:flex-start;box-shadow:0 16px 38px -12px rgba(0,0,0,.7)}
+.tourbox.show{display:flex;animation:screenIn .3s}
+.tourbox .tn{font-family:var(--font-mono);font-size:9.5px;color:var(--amber);letter-spacing:.14em;margin-bottom:3px}
+.tourbox p{font-size:12.5px;line-height:1.55;flex:1}
+.tourbox .tb{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+.tourbox .tb button{background:var(--amber);border:none;color:#241703;font-family:var(--font-body);font-weight:600;font-size:11.5px;padding:7px 11px;border-radius:9px;cursor:pointer}
+.tourbox .tb .tx{background:none;border:1px solid var(--line);color:var(--muted)}
+/* push notification simulation */
+.push{position:absolute;top:12px;left:12px;right:12px;z-index:88;transform:translateY(-130%);transition:transform .55s cubic-bezier(.3,.9,.3,1);background:rgba(20,27,22,.96);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:18px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;box-shadow:0 18px 40px -12px rgba(0,0,0,.7);cursor:pointer}
+.push.show{transform:translateY(0)}
+.push .pic{width:36px;height:36px;border-radius:10px;background:linear-gradient(150deg,var(--amber),#c9822e);display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}
+.push .pt{flex:1;min-width:0}
+.push .pt h5{font-size:12px;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.push .pt h5 span{font-family:var(--font-mono);font-size:9.5px;color:var(--faint);font-weight:400}
+.push .pt p{font-size:12px;color:var(--muted);line-height:1.5;margin-top:2px}
+.push .px{background:none;border:none;color:var(--faint);font-size:13px;cursor:pointer;padding:2px 4px;flex:0 0 auto}
+.muza-row-count{font-family:var(--font-mono);font-size:11px;color:var(--cyan);background:var(--cyan-dim);border:1px solid rgba(118,200,156,.3);padding:5px 10px;border-radius:99px;white-space:nowrap}
+/* muza sheet spacing */
+#muzaSheet .muza{margin-bottom:12px}
+/* onboarding push mock */
+.onb-push{background:rgba(20,27,22,.96);border:1px solid var(--line);border-radius:18px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;max-width:300px;margin:14px auto 0;width:100%;text-align:left;box-shadow:0 14px 34px -12px rgba(0,0,0,.6);animation:pushIn .8s cubic-bezier(.3,.9,.3,1)}
+@keyframes pushIn{from{opacity:0;transform:translateY(-26px)}to{opacity:1;transform:none}}
+/* ================= MUZA (PHOTO MUSE) ================= */
+.muza{background:linear-gradient(145deg,#1b2620,#203026 60%,#242e1f);border:1px solid rgba(118,200,156,.35);border-radius:var(--r-lg);padding:14px 15px;margin-bottom:12px;position:relative;overflow:hidden;transition:opacity .5s, transform .5s}
+.muza::before{content:"";position:absolute;top:-30px;right:-20px;width:110px;height:110px;border-radius:99px;background:radial-gradient(circle,rgba(118,200,156,.16),transparent 70%)}
+.muza.gone{opacity:0;transform:translateY(-8px);pointer-events:none}
+.muza-top{display:flex;gap:11px;align-items:flex-start;margin-bottom:11px}
+.muza-top .wx{font-size:26px;flex:0 0 auto;filter:drop-shadow(0 4px 10px rgba(118,200,156,.3))}
+.muza-top .mt h4{font-size:12.5px;font-weight:600;color:var(--cyan);letter-spacing:.06em;margin-bottom:3px}
+.muza-top .mt p{font-size:13px;line-height:1.6}
+.muza-top .mt p b{color:var(--paper)}
+.muza-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.muza-meta .chip{font-size:10.5px;padding:4px 9px}
+.muza-btns{display:flex;gap:8px}
+.muza-btns .btn{flex:1;padding:10px;font-size:12.5px;border-radius:12px}
+.muza-done{display:none;gap:9px;align-items:center;font-size:12.5px;color:var(--cyan)}
+.muza-done.show{display:flex;animation:screenIn .35s}
+/* muza discovery spots */
+.muza.disc{background:linear-gradient(145deg,#1c2721,#233029 55%,#2a3324)}
+.muza.disc::before{background:radial-gradient(circle,rgba(224,164,76,.14),transparent 70%)}
+.spot{display:flex;gap:11px;align-items:center;background:var(--card-2);border:1px solid var(--line);border-radius:13px;padding:9px 11px;margin-bottom:7px;cursor:pointer;transition:border-color .2s, transform .15s}
+.spot:active{transform:scale(.98)}
+.spot .ph{width:44px;height:44px;flex:0 0 auto;border-radius:11px}
+.spot .si{flex:1;min-width:0}
+.spot .si h5{font-size:13px;font-weight:600;margin-bottom:2px}
+.spot .si p{font-size:10.5px;color:var(--muted)}
+.spot .dist{font-family:var(--font-mono);font-size:11px;color:var(--amber);background:var(--amber-dim);border:1px solid rgba(224,164,76,.3);padding:4px 8px;border-radius:8px;white-space:nowrap;flex:0 0 auto}
+.spot.sel{border-color:var(--amber)}
+/* ================= LIFE THREADS ================= */
+.th-head{display:flex;align-items:baseline;justify-content:space-between;margin:18px 2px 10px}
+.th-head h3{font-family:var(--font-disp);font-size:17px}
+.th-head span{font-family:var(--font-mono);font-size:10px;color:var(--faint);letter-spacing:.12em;text-transform:uppercase}
+.tcard{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--r-lg);padding:14px 15px;margin-bottom:10px;cursor:pointer;transition:transform .15s, border-color .25s}
+.tcard:active{transform:scale(.98)}
+.tcard .tn{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;margin-bottom:4px}
+.tcard h3{font-size:15.5px;font-weight:600;margin-bottom:4px}
+.tcard .tr{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.tmix{display:flex;gap:5px;flex-wrap:wrap}
+.tmix span{font-size:10.5px;color:var(--muted);background:var(--card-2);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.tmix b{color:var(--paper);font-family:var(--font-mono);font-weight:600}
+.th-quote{text-align:center;font-size:12px;color:var(--faint);font-style:italic;padding:10px 18px 4px;line-height:1.6}
+/* ================= PHOTOOS STRIP ================= */
+.os-strip{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 15px;margin-bottom:13px}
+.os-strip h4{font-size:11px;font-family:var(--font-mono);letter-spacing:.13em;color:var(--faint);text-transform:uppercase;margin-bottom:10px}
+.os-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.os-row::-webkit-scrollbar{display:none}
+.os-it{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:9px 13px;min-width:64px}
+.os-it .oi{font-size:16px}
+.os-it b{font-family:var(--font-mono);font-size:12.5px;font-weight:600}
+.os-it span{font-size:9.5px;color:var(--muted)}
+.os-strip p{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.5}
+/* reset chaos */
+.reset-row{width:100%;margin-top:9px;padding:12px;font-size:13px;border-radius:14px}
+/* ================= PRIVATE MEMORIES ================= */
+.notif{display:flex;align-items:center;gap:12px;background:linear-gradient(140deg,#1e2a23,#2a3324);border:1px solid rgba(224,164,76,.35);border-radius:var(--r-lg);padding:13px 15px;margin-bottom:12px;cursor:pointer;transition:transform .15s}
+.notif:active{transform:scale(.98)}
+.notif.gone{display:none}
+.notif .lk{position:relative;width:38px;height:38px;border-radius:13px;background:var(--amber-dim);border:1px solid rgba(224,164,76,.35);display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}
+.notif .lk::after{content:"";position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:99px;background:var(--amber);animation:npulse 1.6s infinite}
+@keyframes npulse{50%{box-shadow:0 0 0 6px rgba(224,164,76,.15)}}
+.notif .nt h4{font-size:13.5px;font-weight:600}
+.notif .nt p{font-size:11.5px;color:var(--muted);margin-top:2px}
+/* PIN pad */
+.pin{position:absolute;inset:0;background:rgba(12,17,14,.96);backdrop-filter:blur(14px);z-index:85;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+.pin.show{display:flex;animation:screenIn .3s}
+.pin .plock{font-size:34px;margin-bottom:14px}
+.pin h2{font-family:var(--font-disp);font-size:21px;margin-bottom:7px}
+.pin .psub{color:var(--muted);font-size:12.5px;line-height:1.6;max-width:250px;margin-bottom:22px}
+.pin-dots{display:flex;gap:14px;margin-bottom:26px}
+.pin-dots i{width:13px;height:13px;border-radius:99px;border:1.5px solid var(--faint);transition:.2s}
+.pin-dots i.f{background:var(--amber);border-color:var(--amber);box-shadow:0 0 12px rgba(224,164,76,.5)}
+.pad{display:grid;grid-template-columns:repeat(3,68px);gap:12px;justify-content:center}
+.pad button{width:68px;height:56px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--paper);font-family:var(--font-mono);font-size:19px;cursor:pointer;transition:background .15s, transform .1s}
+.pad button:active{transform:scale(.93);background:var(--card-2)}
+.pad button.fn{font-size:13px;color:var(--muted);background:none;border:none}
+.pin .pdemo{margin-top:18px;font-size:10.5px;color:var(--faint);font-family:var(--font-mono);letter-spacing:.08em}
+/* memory overlay */
+.mem-date{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--amber);text-transform:uppercase;text-align:center;margin:4px 0 12px}
+.mem-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:13px}
+.mem-strip .ph{aspect-ratio:1}
+.collage{position:relative;display:none;grid-template-columns:1.4fr 1fr;grid-template-rows:1fr 1fr;gap:8px;height:250px;margin:4px 0 12px;background:#e9e4d8;border-radius:18px;padding:12px 12px 34px;box-shadow:0 18px 44px -18px rgba(0,0,0,.65)}
+.collage.show{display:grid}
+.collage .ph{opacity:0;transform:rotate(var(--rr)) scale(.5)}
+.collage.show .ph{animation:settle .7s cubic-bezier(.25,.9,.3,1) forwards;animation-delay:var(--dd)}
+.collage .big{grid-row:1/3}
+.collage .cap{position:absolute;bottom:9px;left:0;right:0;text-align:center;font-family:var(--font-disp);font-size:12.5px;color:#4a4132;opacity:0;animation:screenIn .5s forwards;animation-delay:1.5s}
+.mem-share{display:none;flex-direction:column;gap:9px}
+.mem-share.show{display:flex;animation:screenIn .4s}
+/* ================= TRUST SLIDER ================= */
+.trust-row{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 15px;margin-bottom:12px;cursor:pointer;transition:border-color .25s}
+.trust-row:active{border-color:rgba(224,164,76,.5)}
+.trust-row .ap{flex:0 0 auto}
+.trust-row .tt{flex:1}
+.trust-row .tt h4{font-size:13.5px;font-weight:600}
+.trust-row .tt p{font-size:11.5px;color:var(--muted);margin-top:2px}
+.trust-row .lvl{font-family:var(--font-mono);font-size:11px;color:var(--amber);background:var(--amber-dim);border:1px solid rgba(224,164,76,.3);padding:5px 10px;border-radius:99px;white-space:nowrap}
+.trust{position:absolute;inset:0;background:var(--slate);z-index:78;display:none;flex-direction:column;overflow:hidden}
+.trust.show{display:flex;animation:screenIn .35s}
+.aperture{position:relative;width:120px;height:120px;margin:6px auto 2px}
+.aperture .ring-o{stroke:var(--line);fill:#0e1510;stroke-width:2}
+.aperture .blade{fill:none;stroke:var(--amber);stroke-width:2.4;stroke-linecap:round;transition:all .7s cubic-bezier(.3,.9,.3,1)}
+.aperture .iris{fill:rgba(224,164,76,.13);stroke:var(--amber);stroke-width:1.6;transition:r .7s cubic-bezier(.3,.9,.3,1)}
+.aperture .glow{fill:var(--amber);opacity:.12;transition:r .7s}
+.trust-body{flex:1;overflow-y:auto;padding:0 24px 30px;scrollbar-width:none;text-align:center}
+.trust-body::-webkit-scrollbar{display:none}
+.trust h2{font-family:var(--font-disp);font-size:22px;margin-top:4px}
+.trust .tsub{color:var(--muted);font-size:12.5px;margin-top:5px;line-height:1.55}
+.tslider{margin:22px 2px 6px;position:relative}
+.tslider input{width:100%;appearance:none;-webkit-appearance:none;height:6px;border-radius:99px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,var(--cyan) 0%,var(--amber) 100%)}
+.tslider input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:26px;height:26px;border-radius:99px;background:var(--paper);border:3px solid var(--amber);box-shadow:0 4px 14px rgba(0,0,0,.5);cursor:grab}
+.tslider input::-moz-range-thumb{width:22px;height:22px;border-radius:99px;background:var(--paper);border:3px solid var(--amber);cursor:grab}
+.tlabels{display:flex;justify-content:space-between;margin-top:10px}
+.tlabels span{font-size:10.5px;color:var(--faint);width:33%;line-height:1.4;transition:color .3s}
+.tlabels span:first-child{text-align:left}
+.tlabels span:nth-child(2){text-align:center}
+.tlabels span:last-child{text-align:right}
+.tlabels span.on{color:var(--amber);font-weight:600}
+.tdesc{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px 16px;margin-top:16px;text-align:left;min-height:96px}
+.tdesc h4{font-size:14.5px;font-weight:600;margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.tdesc p{font-size:12.5px;color:var(--muted);line-height:1.6}
+.tsim{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}
+.tsim .cell{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:12px;text-align:left}
+.tsim .cell .k{font-family:var(--font-mono);font-size:21px;font-weight:600;color:var(--cyan);transition:color .3s}
+.tsim .cell.h .k{color:var(--amber)}
+.tsim .cell .l{font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.4}
+.tguard{display:flex;gap:10px;align-items:flex-start;background:var(--cyan-dim);border:1px solid rgba(118,200,156,.25);border-radius:var(--r-md);padding:11px 13px;margin-top:11px;text-align:left}
+.tguard .ic{color:var(--cyan);font-size:14px;flex:0 0 auto;margin-top:1px}
+.tguard p{font-size:11.5px;color:var(--muted);line-height:1.55}
+.tguard b{color:var(--paper)}
+.trust .btn-amber{width:100%;margin-top:16px;padding:14px}
+/* inbox trust banners */
+.mode-note{display:none;gap:10px;align-items:flex-start;border-radius:var(--r-md);padding:11px 13px;margin-bottom:12px;font-size:12px;line-height:1.55;color:var(--muted);border:1px solid var(--line);background:var(--card)}
+.mode-note.show{display:flex;animation:screenIn .3s}
+.mode-note.auto{border-color:rgba(118,200,156,.3);background:var(--cyan-dim)}
+.mode-note.manual{border-color:rgba(224,164,76,.3);background:var(--amber-dim)}
+.mode-note b{color:var(--paper)}
+/* undo toast */
+.toast .undo{background:none;border:none;color:var(--amber);font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;padding:0 0 0 6px}
+/* chat input */
+.quick{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.quick::-webkit-scrollbar{display:none}
+.quick .chip{flex:0 0 auto}
+.chatbox{position:sticky;bottom:0;display:flex;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:6px 6px 6px 15px;align-items:center;margin-top:12px;box-shadow:0 -8px 24px -12px rgba(0,0,0,.5)}
+.chatbox input{flex:1;background:none;border:none;outline:none;color:var(--paper);font-family:var(--font-body);font-size:13.5px;min-width:0}
+.chatbox input::placeholder{color:var(--faint)}
+.chatbox .btn{padding:9px 14px;border-radius:12px;font-size:12.5px}
+/* user albums */
+.acard{display:flex;gap:11px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;animation:screenIn .35s}
+.acard .ph{width:46px;height:46px;flex:0 0 auto;border-radius:11px}
+.acard .ai-i{flex:1;min-width:0}
+.acard h5{font-size:13.5px;font-weight:600;margin-bottom:2px}
+.acard p{font-size:10.5px;color:var(--muted)}
+.acard .who{font-family:var(--font-mono);font-size:10px;color:var(--cyan);background:var(--cyan-dim);border:1px solid rgba(118,200,156,.3);padding:4px 8px;border-radius:8px;white-space:nowrap;flex:0 0 auto}
+.msg .alb-mini{display:flex;flex-direction:column;gap:6px;margin-top:9px}
+.msg .alb-mini .acard{margin:0;background:var(--card-2)}
+/* capabilities manifest + vaults */
+.mf-list{display:flex;flex-direction:column;gap:9px;margin-top:14px;text-align:left}
+.mf-row{display:flex;gap:11px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:11px 13px}
+.mf-row .mi{font-size:17px;flex:0 0 auto;margin-top:1px}
+.mf-row h5{font-size:12.5px;font-weight:600;margin-bottom:2px}
+.mf-row p{font-size:11px;color:var(--muted);line-height:1.55}
+.mf-row p b{color:var(--paper)}
+.vaults{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.vt{font-family:var(--font-mono);font-size:9.5px;color:var(--cyan);background:var(--cyan-dim);border:1px solid rgba(118,200,156,.25);padding:4px 8px;border-radius:8px}
+.vault-strip{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 15px;margin-bottom:13px}
+.vault-strip h4{font-size:11px;font-family:var(--font-mono);letter-spacing:.13em;color:var(--faint);text-transform:uppercase;margin-bottom:10px}
+.vrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.vrow:last-of-type{border-bottom:none}
+.vrow .vi{font-size:15px;flex:0 0 auto;width:22px;text-align:center}
+.vrow .vn{flex:1}
+.vrow .vc{font-family:var(--font-mono);font-size:11.5px;color:var(--paper)}
+.vrow .vd{font-family:var(--font-mono);font-size:9.5px;color:var(--amber)}
+.vault-strip p{font-size:11px;color:var(--faint);margin-top:9px;line-height:1.5}
+/* expedition clip (stories) */
+.expo{position:absolute;inset:0;background:#0b100c;z-index:86;display:none;flex-direction:column;overflow:hidden}
+.expo.show{display:flex;animation:screenIn .3s}
+.story-bars{display:flex;gap:5px;padding:14px 16px 10px;z-index:5}
+.story-bars i{flex:1;height:3px;border-radius:99px;background:rgba(255,255,255,.22);overflow:hidden;position:relative}
+.story-bars i::after{content:"";position:absolute;inset:0;width:0;background:var(--amber);border-radius:99px}
+.story-bars i.done::after{width:100%}
+.story-bars i.run::after{animation:sbar var(--dur,4s) linear forwards}
+@keyframes sbar{from{width:0}to{width:100%}}
+.expo-head{display:flex;align-items:center;gap:10px;padding:0 16px 8px;z-index:5}
+.expo-head .pic{width:30px;height:30px;border-radius:10px;background:linear-gradient(150deg,var(--amber),#c9822e);display:flex;align-items:center;justify-content:center;font-size:14px}
+.expo-head .et{font-size:12px;font-weight:600}
+.expo-head .et span{display:block;font-family:var(--font-mono);font-size:9.5px;color:var(--muted);font-weight:400;margin-top:1px}
+.expo-head .ex{margin-left:auto;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px}
+.expo-stage{flex:1;position:relative}
+.expo-slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:flex-end}
+.expo-slide.active{display:flex;animation:screenIn .35s}
+.expo-slide .bg{position:absolute;inset:0}
+.expo-slide .bg .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.55}
+.expo-slide .bg svg{width:34%;height:34%;stroke:rgba(255,255,255,.8);fill:none;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.expo-slide .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,16,12,.55) 0%,transparent 30%,transparent 45%,rgba(11,16,12,.94) 100%)}
+.expo-cap{position:relative;padding:0 20px 26px;z-index:4}
+.expo-cap .en{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.16em;color:var(--amber);text-transform:uppercase;margin-bottom:5px}
+.expo-cap h3{font-family:var(--font-disp);font-size:23px;line-height:1.15;margin-bottom:7px}
+.expo-cap .when{display:inline-flex;gap:6px;align-items:center;font-family:var(--font-mono);font-size:11px;color:#241703;background:var(--amber);padding:5px 11px;border-radius:99px;font-weight:600;margin-bottom:9px}
+.expo-cap .tip{font-size:12.5px;color:var(--muted);line-height:1.6}
+.expo-cap .tip b{color:var(--cyan)}
+.expo-nav{position:absolute;inset:0;display:flex;z-index:6}
+.expo-nav span{flex:1;cursor:pointer}
+/* photo doctor */
+.doc-wrap{position:relative;border-radius:var(--r-lg);overflow:hidden;height:250px;margin-bottom:12px;box-shadow:0 16px 40px -16px rgba(0,0,0,.6)}
+.doc-layer{position:absolute;inset:0}
+.doc-layer .glyph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.85}
+.doc-layer svg{width:38%;height:38%;stroke:rgba(255,255,255,.85);fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.doc-before{filter:blur(2.5px) sepia(.75) brightness(.62) contrast(.8)}
+.doc-after{clip-path:inset(0 50% 0 0)}
+.doc-divider{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--amber);box-shadow:0 0 14px rgba(224,164,76,.7);pointer-events:none}
+.doc-divider::after{content:"⟷";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:99px;background:var(--amber);color:#241703;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.doc-lbl{position:absolute;top:10px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;padding:4px 9px;border-radius:8px;background:rgba(13,17,23,.72);backdrop-filter:blur(6px)}
+.doc-lbl.b{left:10px;color:var(--muted)}
+.doc-lbl.a{right:10px;color:var(--cyan)}
+.doc-range{width:100%;appearance:none;-webkit-appearance:none;height:6px;border-radius:99px;background:var(--line);outline:none;cursor:grab;margin:2px 0 12px}
+.doc-range::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:24px;height:24px;border-radius:99px;background:var(--paper);border:3px solid var(--amber);box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.doc-range::-moz-range-thumb{width:20px;height:20px;border-radius:99px;background:var(--paper);border:3px solid var(--amber)}
+.doc-stats{display:flex;gap:8px;margin-bottom:12px}
+.doc-stats .cell{flex:1;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:10px;text-align:center}
+.doc-stats .cell b{font-family:var(--font-mono);font-size:15px;color:var(--cyan);display:block}
+.doc-stats .cell span{font-size:9.5px;color:var(--muted)}
+.doc-btns{display:flex;flex-direction:column;gap:9px}
+/* ================= ANALYSIS OVERLAY ================= */
+.overlay{position:absolute;inset:0;background:var(--slate);z-index:75;display:none;flex-direction:column;overflow:hidden}
+.overlay.show{display:flex;animation:screenIn .35s}
+.ov-head{display:flex;align-items:center;gap:12px;padding:16px 20px 10px}
+.ov-head button{background:var(--card-2);border:1px solid var(--line);color:var(--paper);width:34px;height:34px;border-radius:12px;cursor:pointer;font-size:15px}
+.ov-head .t{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase}
+.ov-body{flex:1;overflow-y:auto;padding:4px 20px 30px;scrollbar-width:none}
+.ov-body::-webkit-scrollbar{display:none}
+.ov-hero{height:220px;margin-bottom:14px}
+.asec{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 15px;margin-bottom:9px;opacity:0;transform:translateY(10px);transition:.5s}
+.asec.in{opacity:1;transform:none}
+.asec h5{font-size:11px;font-family:var(--font-mono);letter-spacing:.14em;color:var(--faint);text-transform:uppercase;margin-bottom:9px}
+.qrow{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--muted)}
+.qrow span:first-child{width:86px;flex:0 0 auto}
+.qrow .mono{color:var(--paper);font-size:11.5px;width:38px;text-align:right}
+.face{display:flex;align-items:center;gap:11px}
+.face .fav{width:42px;height:42px;border-radius:99px;flex:0 0 auto;border:2px solid var(--cyan)}
+.face .fn{font-size:14px;font-weight:600}
+.face .fc{font-family:var(--font-mono);font-size:11px;color:var(--cyan)}
+.exif{font-family:var(--font-mono);font-size:10.5px;color:var(--faint);line-height:1.8;letter-spacing:.04em}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="stage-note">
+    <div class="meta">Product Concept · © შალვა 2026</div>
+    <div class="stage-mark"><svg width="52" height="52" viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(48,48)"><g fill="var(--amber)" stroke="#76c89c" stroke-width="1.6" stroke-linejoin="round"><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(0.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(51.4)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(102.8)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(154.2)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(205.6)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(257.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(308.4)"/></g><rect x="-4.5" y="-8.5" width="9" height="3.5" rx="1.5" fill="#76c89c"/><rect x="-10" y="-6" width="20" height="14" rx="3.5" fill="none" stroke="#76c89c" stroke-width="2.4"/><circle cy="1" r="4" fill="none" stroke="#76c89c" stroke-width="2.4"/></g></svg></div>
+    <div class="brand">სხი<em>ვი</em></div>
+    <p>AI ფოტოარქივისტი, რომელიც შენს ვიზუალურ სამყაროს თავად ალაგებს. ფოტო აღარ იკარგება — ის მუშავდება, კლასიფიცირდება და ერთი ფრაზით მოიძებნება.</p>
+    <div class="pill-row">
+      <span class="pill">Workflow-First</span>
+      <span class="pill">Human + AI</span>
+      <span class="pill">Zero Folders</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--faint)">ინტერაქტიული პროტოტიპი — სცადე: დაიწყე AI დამუშავება, დაადასტურე ფოტოები ინბოქსში, მოძებნე ბუნებრივი ენით.</p>
+    <button class="btn btn-amber" id="tourBtn" style="align-self:flex-start">▶ &nbsp;დემო ტური · 60 წმ</button>
+  </div>
+  <div class="phone" id="phone">
+    <div class="statusbar"><span id="clock">21:14</span><div class="cam"></div><span class="mono">◉ 5G</span></div>
+    <div class="screens" id="screens"></div>
+    <nav class="tabbar" id="tabbar"></nav>
+    <div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
+
+    <div class="tourbox" id="tourbox">
+      <div style="flex:1"><div class="tn" id="tourN">ტური · 1/7</div><p id="tourTxt"></p></div>
+      <div class="tb"><button id="tourNext">შემდეგი →</button><button class="tx" id="tourEnd">✕</button></div>
+    </div>
+
+    <div class="push" id="push">
+      <span class="pic"><svg width="22" height="22" viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(48,48)" fill="#241a03"><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(0.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(51.4)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(102.8)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(154.2)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(205.6)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(257.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(308.4)"/></g></svg></span>
+      <div class="pt">
+        <h5>სხივი · მუზა <span>ახლა</span></h5>
+        <p>ხვალ დილით გორზე ნისლია 🌫 და შენც თავისუფალი ხარ — ორი შეთავაზება მაქვს, ძმაო.</p>
+      </div>
+      <button class="px" id="pushX">✕</button>
+    </div>
+
+    <div class="onb" id="onb">
+      <div class="onb-top">
+        <div class="onb-dots" id="onbDots"></div>
+        <button class="onb-skip" id="onbSkip">გამოტოვება →</button>
+      </div>
+
+      <div class="oslide" data-s="0">
+        <div class="spacer"></div>
+        <div class="splash-wrap developing" id="splashLogo"><div class="splash-mark"><svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(48,48)"><g fill="var(--amber)" stroke="#76c89c" stroke-width="1.6" stroke-linejoin="round"><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(0.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(51.4)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(102.8)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(154.2)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(205.6)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(257.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(308.4)"/></g><rect x="-4.5" y="-8.5" width="9" height="3.5" rx="1.5" fill="#76c89c"/><rect x="-10" y="-6" width="20" height="14" rx="3.5" fill="none" stroke="#76c89c" stroke-width="2.4"/><circle cy="1" r="4" fill="none" stroke="#76c89c" stroke-width="2.4"/></g></svg></div><div class="splash-logo">სხი<em>ვი</em></div></div>
+        <div class="splash-tag">შენ იღებ. სხი<span style="color:var(--amber)">ვი</span> ალაგებს.</div>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="oslide" data-s="1">
+        <div class="spacer"></div>
+        <div class="chaos" id="chaosBox"></div>
+        <h2>12,000 ფოტო.<br><em>ნული წესრიგი.</em></h2>
+        <p class="otxt">ფოტოებით ცხოვრება ლამაზი ხდება. ლამაზად გადაღებულით — კიდევ უფრო. მაგრამ სადღაც ამ გზაზე იბადება ქაოსი: სქრინშოტები, დუბლიკატები, დაკარგული მოგონებები…</p>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">მერე რა ვქნათ?</button>
+      </div>
+
+      <div class="oslide" data-s="2">
+        <div class="spacer"></div>
+        <div class="order-lbls"><span class="chip ai">ოჯახი</span><span class="chip ai">მოგზაურობა</span><span class="chip ai">დოკუმენტები</span></div>
+        <div class="order-grid" id="orderGrid"></div>
+        <h2>შენ იღებ.<br><em>სხივი ალაგებს.</em></h2>
+        <p class="otxt">AI ამოიცნობს ვინ არის კადრში, სად და რა ხდება — და ქაოსს აქცევს ცოცხალ სესიებად, ისტორიებად და კავშირებად. ფოტო, ვიდეო, დოკუმენტი — ყველაფერი ერთ ნაკადში, საქაღალდეების გარეშე. ბოლო სიტყვა კი ყოველთვის შენია.</p>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">კიდევ?</button>
+      </div>
+
+      <div class="oslide" data-s="3">
+        <div class="spacer"></div>
+        <h2>ეძებე ისე,<br>როგორც <em>ფიქრობ.</em></h2>
+        <div class="demo-search"><span style="color:var(--faint)">🔍</span><span id="typeTxt"></span><span class="cur"></span></div>
+        <div class="demo-resp">
+          <div class="airesp" id="onbResp"><div class="av">✦</div><p>ნაპოვნია <span class="found">214 ფოტო</span> — უმეტესად ბათუმი, აგვისტო.</p></div>
+        </div>
+        <p class="otxt" style="margin-top:14px">ფაილის სახელები დაივიწყე სამუდამოდ.</p>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">მომწონს, შემდეგ</button>
+      </div>
+
+      <div class="oslide" data-s="4">
+        <div class="spacer"></div>
+        <h2>ის თვითონ <em>გეძახის.</em></h2>
+        <div class="onb-push">
+          <span class="pic" style="width:36px;height:36px;border-radius:10px;background:linear-gradient(150deg,var(--amber),#c9822e);display:flex;align-items:center;justify-content:center;flex:0 0 auto"><svg width="22" height="22" viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(48,48)" fill="#241a03"><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(0.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(51.4)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(102.8)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(154.2)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(205.6)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(257.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(308.4)"/></g></svg></span>
+          <div class="pt" style="flex:1;min-width:0">
+            <h5 style="font-size:12px;font-weight:600">სხივი · მუზა</h5>
+            <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:2px">ხვალ დილით ნისლია 🌫 — პეიზაჟისთვის იდეალური. ოქროს საათი 07:40-ზე. წახვალ?</p>
+          </div>
+        </div>
+        <p class="otxt" style="margin-top:14px">მუზა ამინდს, ოქროს საათს, შენს ადგილებს და გემოვნებას აკვირდება — და საუკეთესო მომენტს არ გაუშვებს. ოსტატი კი ადგილზევე გასწავლის, როგორ გადაიღო უკეთ.</p>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">მაგარია, შემდეგ</button>
+      </div>
+
+      <div class="oslide" data-s="5">
+        <div class="spacer"></div>
+        <div class="aperture" style="width:74px;height:74px;margin:0 auto 6px">
+          <svg width="74" height="74" viewBox="0 0 120 120">
+            <circle class="ring-o" cx="60" cy="60" r="56"/>
+            <circle class="glow" cx="60" cy="60" r="36" id="apGlowOnb"/>
+            <circle class="iris" cx="60" cy="60" r="36" id="apIrisOnb"/>
+          </svg>
+        </div>
+        <h2>აი, <em>ზუსტად</em> რას გავაკეთებ</h2>
+        <p class="otxt">შენ წყვეტ, რამდენს მანდობ — დიაფრაგმასავით. და რეგისტრაციამდე, პატიოსნად, ჩამონათვალით:</p>
+        <div class="mf-list">
+          <div class="mf-row"><span class="mi">📥</span><div><h5>დაგილაგებ ყველაფერს, რაც უკვე გაქვს</h5><p>ისე, როგორც <b>შენ მიბრძანებ</b> — ან ჩემით, თუ მომანდობ. შენ ირჩევ ნდობის დონეს.</p></div></div>
+          <div class="mf-row"><span class="mi">🗄</span><div><h5>გამოგიტან შენს „სარდაფებს"</h5><p>სად რა გიდევს, რამდენი და როგორ:</p>
+            <div class="vaults"><span class="vt">📷 კამერა · 8,412</span><span class="vt">💬 WhatsApp · 2,306</span><span class="vt">🖼 სქრინი · 1,204</span><span class="vt">⬇️ ჩამოტვირთვები · 382</span></div>
+          </div></div>
+          <div class="mf-row"><span class="mi">♻️</span><div><h5>დუბლიკატებს ცალკე დავალაგებ და სახელს დავარქმევ</h5><p>ზუსტად გეტყვი — <b>რომელი ფოტოს ასლია</b> და <b>რომელ სარდაფშია</b> შენახული.</p></div></div>
+          <div class="mf-row"><span class="mi">🛡</span><div><h5>და მთავარი პირობა</h5><p>უკითხავად <b>არაფერს წავშლი</b>. ყველა ჩემი ნაბიჯი უკუქცევადია ერთი შეხებით.</p></div></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">გასაგებია — განვაგრძოთ</button>
+      </div>
+
+      <div class="oslide" data-s="6">
+        <div class="spacer"></div>
+        <h2>შექმენი შენი <em>არქივი</em></h2>
+        <p class="otxt">ანგარიში ინახავს შენს კოლექციებს და აკავშირებს მოწყობილობებს.</p>
+        <div class="auth-btns">
+          <button class="auth-btn onb-next"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.06-1.4-.18-2H12v3.9h5.4a4.6 4.6 0 01-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4z"/><path fill="#34A853" d="M12 21.5c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 .96-3.4.96-2.6 0-4.8-1.75-5.6-4.1H3.1v2.6A10 10 0 0012 21.5z"/><path fill="#FBBC04" d="M6.4 13.4a6 6 0 010-3.8V7H3.1a10 10 0 000 9z"/><path fill="#EA4335" d="M12 6.4c1.5 0 2.8.5 3.8 1.5L18.7 5A10 10 0 003.1 7l3.3 2.6c.8-2.35 3-4.1 5.6-4.1z"/></svg>Google-ით გაგრძელება</button>
+          <button class="auth-btn onb-next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.1 12.9c0-2.4 2-3.6 2.1-3.66-1.15-1.67-2.93-1.9-3.56-1.93-1.5-.15-2.95.9-3.72.9-.77 0-1.95-.88-3.2-.85-1.65.02-3.17.96-4 2.42-1.72 2.97-.44 7.37 1.22 9.78.82 1.18 1.79 2.5 3.06 2.46 1.23-.05 1.7-.8 3.19-.8s1.9.8 3.2.77c1.33-.02 2.17-1.2 2.98-2.38.94-1.37 1.32-2.7 1.34-2.77-.03-.01-2.57-.98-2.6-3.9zM14.7 5.4c.68-.83 1.14-1.98 1-3.12-.98.04-2.16.65-2.86 1.47-.63.73-1.18 1.9-1.03 3.02 1.1.08 2.2-.55 2.9-1.37z"/></svg>Apple-ით გაგრძელება</button>
+          <button class="auth-btn mail onb-next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>ელფოსტით რეგისტრაცია</button>
+        </div>
+        <button class="guest-link onb-next">ჯერ მხოლოდ დავათვალიერებ →</button>
+        <p class="legal">რეგისტრაციით ეთანხმები წესებს და კონფიდენციალურობის პოლიტიკას.</p>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="oslide" data-s="7">
+        <div class="spacer"></div>
+        <h2>სხივს სჭირდება შენი ფოტოების <em>ნახვა</em></h2>
+        <div class="perm-card">
+          <div class="pic">🔐</div>
+          <p>ანალიზი ხდება <b>უსაფრთხოდ</b> — ფოტოები შენს კონტროლს არასდროს ტოვებს. წვდომის შეცვლა ნებისმიერ დროს შეგიძლია პარამეტრებში.</p>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">წვდომის მიცემა</button>
+        <button class="btn btn-ghost onb-next">მოგვიანებით</button>
+      </div>
+
+      <div class="oslide" data-s="8">
+        <div class="spacer"></div>
+        <h2>როგორ ვიმუშაოთ <em>ერთად?</em></h2>
+        <p class="otxt">აირჩიე საწყისი რეჟიმი — მოგვიანებით ნებისმიერ დროს შეცვლი.</p>
+        <div class="onb-trust">
+          <div class="tslider"><input type="range" id="tRangeOnb" min="0" max="2" step="1" value="1" aria-label="ნდობის დონე"></div>
+          <div class="tlabels" id="tlabelsOnb"><span data-l="0">სრული კონტროლი</span><span data-l="1" class="on">თანამშრომლობა</span><span data-l="2">ავტოპილოტი</span></div>
+          <div class="tdesc" style="text-align:left"><h4 id="tdTitleOnb"></h4><p id="tdTextOnb"></p></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-amber onb-next">არჩევა და გაგრძელება</button>
+      </div>
+
+      <div class="oslide" data-s="9">
+        <div class="spacer"></div>
+        <div class="ph sc-mtn developing" id="scanPh" style="width:130px;height:130px;margin:0 auto 20px"><span class="glyph"></span></div>
+        <h2 id="scanTitle">AI ეცნობა შენს <em>არქივს…</em></h2>
+        <div class="scan-count">დამუშავდა <b id="scanN">0</b> / 12,304</div>
+        <div class="proc-steps" id="onbSteps" style="margin:0 auto;text-align:left"></div>
+        <div class="scan-result" id="scanResult">
+          <div class="found-grid">
+            <div class="fcell"><div class="k">14</div><div class="l">კოლექცია</div></div>
+            <div class="fcell"><div class="k">438</div><div class="l">დუბლიკატი</div></div>
+            <div class="fcell"><div class="k">96</div><div class="l">დოკუმენტი</div></div>
+          </div>
+          <button class="btn btn-amber" id="onbFinish">ჩემი ახალი არქივის ნახვა →</button>
+        </div>
+        <div class="spacer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ helpers ============ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const clock=$('#clock'); const tick=()=>{const d=new Date();clock.textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};tick();setInterval(tick,20000);
+function toast(msg,undoFn){
+  $('#toastMsg').textContent=msg;
+  const old=$('#toastUndo');if(old)old.remove();
+  if(undoFn){const b=document.createElement('button');b.className='undo';b.id='toastUndo';b.textContent='გაუქმება';
+    b.onclick=()=>{undoFn();$('#toast').classList.remove('show')};$('#toast').appendChild(b)}
+  $('#toast').classList.add('show');clearTimeout(toast._t);
+  toast._t=setTimeout(()=>$('#toast').classList.remove('show'),undoFn?3600:2400);
+}
+
+/* glyph icons for photo scenes */
+const G={
+ sea:'<svg viewBox="0 0 24 24"><circle cx="17" cy="7" r="2.6"/><path d="M2 15c2-1.6 4-1.6 6 0s4 1.6 6 0 4-1.6 6 0M2 19c2-1.6 4-1.6 6 0s4 1.6 6 0 4-1.6 6 0"/></svg>',
+ mtn:'<svg viewBox="0 0 24 24"><path d="M3 19L9.5 7l4 7 2.5-4L21 19z"/><circle cx="6.5" cy="6" r="1.8"/></svg>',
+ city:'<svg viewBox="0 0 24 24"><path d="M4 20V9h5v11M9 20V5h6v15M15 20v-8h5v8M6 12h1M6 15h1M11 8h2M11 11h2M11 14h2"/></svg>',
+ person:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.8-3.6 3.4-5.4 6.5-5.4s5.7 1.8 6.5 5.4"/></svg>',
+ doc:'<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z M14 3v4h4 M10 12h6M10 15h6M10 18h4"/></svg>',
+ tree:'<svg viewBox="0 0 24 24"><path d="M12 3l5 7h-3l4 6H6l4-6H7z M12 16v5"/></svg>',
+ snow:'<svg viewBox="0 0 24 24"><path d="M12 3v18M5 6.5l14 11M19 6.5l-14 11M12 3l-2 2m2-2l2 2M12 21l-2-2m2 2l2-2"/></svg>',
+ cake:'<svg viewBox="0 0 24 24"><path d="M5 21h14v-7H5zM5 17c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 4.5 0M12 10v4M12 10a1.6 1.6 0 001.6-2.4L12 5l-1.6 2.6A1.6 1.6 0 0012 10z"/></svg>',
+ food:'<svg viewBox="0 0 24 24"><path d="M4 15a8 8 0 0116 0z M2.5 15h19 M8 18.5h8"/></svg>',
+ car:'<svg viewBox="0 0 24 24"><path d="M4 16l1.5-5a2 2 0 012-1.5h9a2 2 0 012 1.5L20 16v3h-2.5M4 16v3h2.5M4 16h16M7 19a1.5 1.5 0 103 0m4 0a1.5 1.5 0 103 0"/></svg>'
+};
+const ph=(p,extra='',num=true)=>`<div class="ph sc-${p.sc} ${extra}" data-id="${p.id}">${num?`<span class="num">IMG_${String(p.id).padStart(4,'0')}</span>`:''}<span class="glyph">${G[p.g]}</span>${p.dots?`<span class="tagdots">${'<i></i>'.repeat(p.dots)}</span>`:''}</div>`;
+
+/* ============ mock archive ============ */
+const LIB=[
+ {id:214,sc:'sea',g:'sea',tags:['places','travel','family','people'],dots:3},
+ {id:311,sc:'mtn',g:'mtn',tags:['places','travel'],dots:2},
+ {id:118,sc:'portrait',g:'person',tags:['people','family'],dots:2},
+ {id:402,sc:'doc',g:'doc',tags:['docs','work'],dots:2},
+ {id:277,sc:'city',g:'city',tags:['places','travel'],dots:2},
+ {id:190,sc:'bday',g:'cake',tags:['events','family','people'],dots:3},
+ {id:355,sc:'forest',g:'tree',tags:['places'],dots:1},
+ {id:129,sc:'snow',g:'snow',tags:['places','travel'],dots:2},
+ {id:243,sc:'food',g:'food',tags:['events','family'],dots:2},
+ {id:388,sc:'street',g:'car',tags:['places'],dots:1},
+ {id:166,sc:'portrait',g:'person',tags:['people','work'],dots:2},
+ {id:421,sc:'doc',g:'doc',tags:['docs'],dots:1}
+];
+const FILTERS=[['all','ყველა'],['people','ადამიანები'],['places','ადგილები'],['events','მოვლენები'],['travel','მოგზაურობა'],['family','ოჯახი'],['docs','დოკუმენტები'],['work','სამსახური']];
+
+const INBOX=[
+ {id:214,sc:'sea',g:'sea',conf:94,cat:'ოჯახური მოგზაურობა',loc:'ბათუმი',who:'გიორგი',note:'ამოვიცანი <b>გიორგი</b> და საზღვაო პეიზაჟი. ვთავაზობ ალბომს — <b>„ზაფხული ბათუმში"</b>.'},
+ {id:402,sc:'doc',g:'doc',conf:98,cat:'დოკუმენტი',loc:null,who:null,note:'ეს <b>ხელშეკრულებაა</b> — გადავიტან დაცულ დოკუმენტების არქივში, გალერეიდან დაიმალება.'},
+ {id:190,sc:'bday',g:'cake',conf:89,cat:'დაბადების დღე',loc:'თბილისი',who:'ნინო',note:'ვხედავ ტორტს, სანთლებს და <b>ნინოს</b> — სავარაუდოდ <b>დაბადების დღეა</b>.'},
+ {id:311,sc:'mtn',g:'mtn',conf:96,cat:'მოგზაურობა',loc:'ყაზბეგი',who:null,note:'მთის პეიზაჟი, GPS ადასტურებს — <b>ყაზბეგი</b>. დაემატება „საქართველოს მთები" კოლექციას.'},
+ {id:519,sc:'street',g:'car',conf:99,cat:'დუბლიკატი',loc:null,who:null,dup:true,note:'ვიპოვე ამ კადრის <b>3 ასლი</b>: ორიგინალი — 📷 კამერის სარდაფში, ასლები — 💬 WhatsApp-სა და ⬇️ ჩამოტვირთვებში. ეს ვერსია ყველაზე მკვეთრია — დანარჩენი 2 წავშალო?'},
+ {id:520,sc:'forest',g:'tree',conf:91,cat:'დაბალი ხარისხი',loc:null,who:null,blur:true,note:'კადრი <b>ბუნდოვანია</b> (sharpness 21%). გირჩევ წაშლას — მსგავსი მკვეთრი კადრი უკვე გაქვს.<br><span style="color:var(--cyan)">📸 ოსტატი:</span> ბინდში იღებდი — შემდეგ ჯერზე ჩართე <b>ღამის რეჟიმი</b> და ტელეფონი რამეს მიაყრდენი.'}
+];
+const CATS=['ოჯახური მოგზაურობა','მოვლენა','დოკუმენტი','სამსახური','ბუნება','პორტრეტი'];
+
+/* ============ tabs ============ */
+const TABS=[
+ {id:'home',l:'მთავარი',ic:'<svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/></svg>'},
+ {id:'inbox',l:'ინბოქსი',ic:'<svg viewBox="0 0 24 24"><path d="M3 13l3-8h12l3 8v6H3z M3 13h5a4 4 0 008 0h5"/></svg>',badge:true},
+ {id:'sess',l:'სესიები',ic:'<svg viewBox="0 0 24 24"><path d="M4 17V9a2 2 0 012-2h3l2-2.5h2L15 7h3a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><circle cx="12" cy="13" r="3.2"/><path d="M4 5h3"/></svg>'},
+ {id:'lib',l:'ბიბლიოთეკა',ic:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2.5"/><path d="M3 15l5-4 4 3 4-5 5 6"/><circle cx="9" cy="9.5" r="1.3"/></svg>'},
+ {id:'search',l:'ძებნა',ic:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>'},
+ {id:'chat',l:'ასისტენტი',ic:'<svg viewBox="0 0 24 24"><path d="M4 6a2.5 2.5 0 012.5-2.5h11A2.5 2.5 0 0120 6v8a2.5 2.5 0 01-2.5 2.5H9L4 21z"/><path d="M8.5 9h7M8.5 12.5h4.5"/></svg>'}
+];
+$('#tabbar').innerHTML=TABS.map(t=>`<button class="tab" data-t="${t.id}">${t.ic}<span>${t.l}</span>${t.badge?`<span class="badge" id="inboxBadge">${INBOX.length}</span>`:''}</button>`).join('');
+
+/* ============ screen shells ============ */
+$('#screens').innerHTML=`
+<section class="screen" id="s-home">
+ <div class="screen-head">
+   <div class="eyebrow">Control Center</div>
+   <div class="hello"><div><h1>საღამო მშვიდობისა, შაკო</h1><div class="sub">შენი არქივი თითქმის წესრიგშია — <b style="color:var(--amber)">16 ფოტო</b> შენს გადაწყვეტილებას ელოდება.</div></div></div>
+ </div>
+ <div class="screen-body">
+   <div class="sec-lbl">დღეს</div>
+   <div class="notif" id="memNotif">
+     <span class="lk">🔒</span>
+     <div class="nt"><h4>1 პირადი შეტყობინება</h4><p>მხოლოდ შენთვის · დეტალები დაფარულია</p></div>
+   </div>
+<div class="trust-row" id="muzaRow">
+     <span style="font-size:22px;flex:0 0 auto">🌫</span>
+     <div class="tt"><h4>მუზა</h4><p>შენი შემოქმედებითი მეგზური</p></div>
+     <span class="muza-row-count" id="muzaRowCount">2 შეთავაზება</span>
+   </div>
+   <div class="ring-wrap">
+     <div class="ring">
+       <svg width="84" height="84" viewBox="0 0 84 84">
+         <defs><linearGradient id="gradRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#76c89c"/><stop offset="1" stop-color="#a3e0bd"/></linearGradient></defs>
+         <circle class="track" cx="42" cy="42" r="36"/><circle class="val" id="ringVal" cx="42" cy="42" r="36"/>
+       </svg>
+       <span class="pct" id="ringPct">0%</span>
+     </div>
+     <div class="ring-txt"><h3>AI არქივისტი მუშაობს</h3><p>247 ახალი ფოტოდან 231 უკვე გაანალიზებულია და დალაგებულია ავტომატურად.</p></div>
+   </div>
+   <div class="sec-lbl">არქივი</div>
+   <div class="ring-wrap">
+     <div class="ring">
+       <svg width="84" height="84" viewBox="0 0 84 84">
+         <defs><linearGradient id="gradRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#76c89c"/><stop offset="1" stop-color="#a3e0bd"/></linearGradient></defs>
+         <circle class="track" cx="42" cy="42" r="36"/><circle class="val" id="ringVal" cx="42" cy="42" r="36"/>
+       </svg>
+       <span class="pct" id="ringPct">0%</span>
+     </div>
+     <div class="ring-txt"><h3>AI არქივისტი მუშაობს</h3><p>247 ახალი ფოტოდან 231 უკვე გაანალიზებულია და დალაგებულია ავტომატურად.</p></div>
+   </div>
+   <div class="trust-row" id="trustRow">
+     <svg class="ap" width="46" height="46" viewBox="0 0 120 120"><circle class="ring-o" cx="60" cy="60" r="55"/><circle class="glow" cx="60" cy="60" r="30" id="apGlowMini"/><circle class="iris" cx="60" cy="60" r="30" id="apIrisMini"/></svg>
+     <div class="tt"><h4>ნდობის დონე</h4><p>რამდენად დამოუკიდებლად იმუშაოს AI-მ</p></div>
+     <span class="lvl" id="trustLvlLabel">თანამშრომლობა</span>
+   </div>
+<button class="btn btn-amber cta-big" id="startProc">✦ &nbsp;AI დამუშავების დაწყება</button>
+   <div class="sec-lbl" style="margin-top:18px">მიმოხილვა და კონტროლი</div>
+   <div class="stat-grid">
+     <div class="stat"><div class="k mono" data-count="247">0</div><div class="l">ახალი ფოტო</div></div>
+     <div class="stat"><div class="k mono" data-count="231" style="color:var(--cyan)">0</div><div class="l">AI-მ დაამუშავა</div></div>
+     <div class="stat warn"><div class="k mono" data-count="16" id="needK">0</div><div class="l">განსახილველი</div></div>
+     <div class="stat"><div class="k mono" data-count="58">0</div><div class="l">ჭკვიანი ალბომი</div></div>
+   </div>
+<div class="flow">
+     <h4>Photo Workflow</h4>
+     <div class="flow-line" id="flowLine">
+       ${['გადაღება','იმპორტი','AI ანალიზი','დასტური','არქივი'].map((s,i)=>`<div class="fstep${i<3?' on':''}"><span class="fd"></span>${s}</div>${i<4?'<span class="farrow">→</span>':''}`).join('')}
+     </div>
+   </div>
+<button class="btn btn-ghost reset-row" id="resetChaos">⟲ &nbsp;ქაოსის განულება — მთელი არქივი, 30 წამში</button>
+   <div class="storage"><span>საცავი</span><b>42 GB თავისუფალია · 128 GB-დან</b></div>
+ </div>
+</section>
+
+<section class="screen" id="s-inbox">
+ <div class="screen-head">
+   <div class="eyebrow">Photo Inbox</div>
+   <h1>შემოსული ფოტოები</h1>
+   <div class="sub">AI-მ ყველაფერი გააანალიზა — შენ მხოლოდ დაადასტურე.</div>
+ </div>
+ <div class="screen-body">
+   <div class="inbox-top">
+     <span class="chip ai">✓ ხარისხი · დუბლიკატები · სახეები · ლოკაციები — შემოწმებულია</span>
+   </div>
+   <div class="mode-note" id="modeNote"><span class="ic">✦</span><p id="modeNoteTxt"></p></div>
+   <div id="inboxList"></div>
+   <div class="empty" id="inboxEmpty">
+     <span class="big">🗂️</span><h3>ინბოქსი ცარიელია</h3>
+     <p>ყველა ფოტო დამუშავებულია და თავის ადგილზეა.<br>„შენ იღებ — სხივი ალაგებს."</p>
+     <button class="btn btn-ghost" onclick="go('lib')">ბიბლიოთეკის ნახვა</button>
+   </div>
+ </div>
+</section>
+
+<section class="screen" id="s-sess">
+ <div class="screen-head">
+   <div class="eyebrow">Living Workspace</div>
+   <h1>ცოცხალი სესიები</h1>
+   <div class="sub">ცხოვრება ალბომებად არ მიმდინარეობს — ის სესიებად მიმდინარეობს.</div>
+ </div>
+ <div class="screen-body">
+   <div class="sess-hero">
+     <div class="ai-line"><span class="av">✦</span>დღეს 298 ფაილი შემოვიდა. ალბომების ნაცვლად —</div>
+     <div class="scard hot" data-sess="27" style="margin:0">
+       <div class="scard-top">
+         <div><div class="sn">სამუშაო სესია № 27</div><h3>სამშენებლო ობიექტი</h3></div>
+         <span class="stime">08:12 — 16:48</span>
+       </div>
+       <div class="sloc">📍 Dresden, გერმანია · GPS ✓</div>
+       <div class="sstats">
+         <span class="sstat"><b>287</b><span>ფოტო</span></span>
+         <span class="sstat"><b>8</b><span>ვიდეო</span></span>
+         <span class="sstat"><b>3</b><span>დოკუმენტი</span></span>
+         <span class="sstat ok"><b>4</b><span>მონაწილე</span></span>
+       </div>
+     </div>
+   </div>
+   <div class="scard" data-sess="26">
+     <div class="scard-top">
+       <div><div class="sn">სესია № 26</div><h3>ოჯახური საღამო</h3></div>
+       <span class="stime">19:05 — 22:30</span>
+     </div>
+     <div class="sloc">📍 გორი · გუშინ</div>
+     <div class="sstats">
+       <span class="sstat"><b>24</b><span>ფოტო</span></span>
+       <span class="sstat"><b>2</b><span>ვიდეო</span></span>
+       <span class="sstat ok"><b>5</b><span>მონაწილე</span></span>
+     </div>
+   </div>
+   <div class="scard" data-sess="25">
+     <div class="scard-top">
+       <div><div class="sn">სესია № 25</div><h3>მოგზაურობა ყაზბეგში</h3></div>
+       <span class="stime">06:40 — 21:15</span>
+     </div>
+     <div class="sloc">📍 ყაზბეგი · შაბათი</div>
+     <div class="sstats">
+       <span class="sstat"><b>142</b><span>ფოტო</span></span>
+       <span class="sstat"><b>11</b><span>ვიდეო</span></span>
+       <span class="sstat ok"><b>3</b><span>მონაწილე</span></span>
+     </div>
+   </div>
+   <div class="th-head"><h3>🧵 Life Threads</h3><span>ისტორიები</span></div>
+   <div class="tcard" data-th="18">
+     <div class="tn">Thread № 18</div>
+     <h3>პოლონეთში გადასვლა</h3>
+     <div class="tr">2019 სექ — 2020 აგვ · Szczecin · ავტომატურად შეკრული</div>
+     <div class="tmix"><span><b>526</b> ფოტო</span><span><b>3</b> ბილეთი</span><span><b>1</b> ხელშეკრულება</span><span><b>14</b> PDF</span><span><b>6</b> შენიშვნა</span></div>
+   </div>
+   <div class="tcard" data-th="52">
+     <div class="tn">Thread № 52</div>
+     <h3>სახლის რემონტი</h3>
+     <div class="tr">2024 მარ — 2024 ივნ · გორი · მიმდინარე</div>
+     <div class="tmix"><span><b>212</b> ფოტო</span><span><b>28</b> ჩეკი</span><span><b>4</b> ინვოისი</span><span><b>1</b> გარანტია</span></div>
+   </div>
+   <div class="th-quote">Google-ის კონცეფცია: „აი შენი ფოტო."<br>სხივი ამბობს: „აი შენი ფოტო — <b style="color:var(--amber)">და აქაა მთელი შენი ისტორია.</b>"</div>
+   <div class="sess-phil">„შენ არ ქმნი ალბომებს.<br>შენ უბრალოდ ცხოვრობ — სხივი კი ისტორიას ინახავს."</div>
+ </div>
+</section>
+
+<section class="screen" id="s-lib">
+ <div class="screen-head">
+   <div class="eyebrow">Smart Library</div>
+   <h1>ჭკვიანი ბიბლიოთეკა</h1>
+   <div class="sub">საქაღალდეები აღარ არსებობს — მხოლოდ ცოცხალი კავშირები.</div>
+ </div>
+ <div class="screen-body">
+   <div class="os-strip">
+     <h4>PhotoOS · შენი სარდაფები</h4>
+     <div class="os-row">
+       <div class="os-it"><span class="oi">📷</span><b>12,304</b><span>ფოტო</span></div>
+       <div class="os-it"><span class="oi">🎬</span><b>486</b><span>ვიდეო</span></div>
+       <div class="os-it"><span class="oi">📄</span><b>312</b><span>დოკუმენტი</span></div>
+       <div class="os-it"><span class="oi">🖼</span><b>1,204</b><span>სქრინშოტი</span></div>
+       <div class="os-it"><span class="oi">🎙</span><b>57</b><span>ხმა</span></div>
+     </div>
+     <div style="height:1px;background:var(--line);margin:11px 0"></div>
+     <div class="vrow"><span class="vi">📷</span><span class="vn">კამერა</span><span class="vd">312 დუბლ.</span><span class="vc">8,412</span></div>
+     <div class="vrow"><span class="vi">💬</span><span class="vn">WhatsApp</span><span class="vd">98 დუბლ.</span><span class="vc">2,306</span></div>
+     <div class="vrow"><span class="vi">🖼</span><span class="vn">სქრინშოტები</span><span class="vd">21 დუბლ.</span><span class="vc">1,204</span></div>
+     <div class="vrow"><span class="vi">⬇️</span><span class="vn">ჩამოტვირთვები</span><span class="vd">7 დუბლ.</span><span class="vc">382</span></div>
+     <p>ერთი workflow ყველა ფაილს · დუბლიკატმა იცის, რომელი ორიგინალის ასლია და რომელ სარდაფშია.</p>
+   </div>
+   <div class="filter-row" id="filterRow"></div>
+   <div class="th-head" id="albHead" style="display:none;margin-top:4px"><h3>📚 ჩემი ალბომები</h3><span>შენ დაარქვი</span></div>
+   <div id="albList"></div>
+   <div class="lib-count" id="libCount"></div>
+   <div class="grid" id="libGrid"></div>
+ </div>
+</section>
+
+<section class="screen" id="s-search">
+ <div class="screen-head">
+   <div class="eyebrow">Smart Search · Second Brain</div>
+   <h1>შენ აღარ ეძებ — შენ იხსენებ</h1>
+   <div class="sub">აღწერე მოგონება ისე, როგორც გახსოვს — დანარჩენს მე გავარკვევ.</div>
+ </div>
+ <div class="screen-body">
+   <div class="searchbox">
+     <input id="q" placeholder="მაგ.: ლურჯი ქურთუკი მეცვა…" autocomplete="off">
+     <button class="btn btn-amber" id="qGo">ძებნა</button>
+   </div>
+   <div class="sugg">
+     <span class="chip" data-sb="1">🧠 ლურჯი ქურთუკი მეცვა, გიორგისთან ვიდექი მანქანასთან</span>
+     <span class="chip" data-q="მაჩვენე ყველა ფოტო მანქანით">🚗 ფოტოები მანქანით</span>
+     <span class="chip" data-q="2024 წლის დოკუმენტები">📄 2024-ის დოკუმენტები</span>
+   </div>
+   <div class="sbflow" id="sbFlow"></div>
+   <div class="airesp" id="airesp"><div class="av">✦</div><p id="airespTxt"></p></div>
+   <div class="grid" id="qGrid"></div>
+ </div>
+</section>
+
+<section class="screen" id="s-chat">
+ <div class="screen-head">
+   <div class="eyebrow">AI Assistant</div>
+   <h1>შენი არქივისტი</h1>
+   <div class="sub">მან იცის შენი არქივის ყოველი კუთხე.</div>
+ </div>
+ <div class="screen-body">
+   <div class="chat" id="chat">
+     <div class="msg ai">გამარჯობა, შაკო 👋 დღეს <b>247 ახალი ფოტო</b> დავამუშავე. რით დაგეხმარო?</div>
+   </div>
+   <div class="typing" id="typing"><i></i><i></i><i></i></div>
+   <div class="quick" id="quick">
+     <span class="chip" data-a="night">როგორ გადავიღო ღამით? 📸</span>
+     <span class="chip" data-a="job">სად არის ჩემი პირველი სამსახურის ფოტო?</span>
+     <span class="chip" data-a="dup">რამდენი დუბლიკატი მაქვს?</span>
+     <span class="chip" data-a="year">შექმენი 2026 წლის ალბომი</span>
+     <span class="chip" id="chipSpain">ესპანეთის ალბომები — მე / დიანასთან 🇪🇸</span>
+     <span class="chip" id="chipRio">მივდივარ რიოში — მომიმზადე გეგმა 🇧🇷</span>
+     <span class="chip" id="chipDoc">ძველი ფოტო აღადგინე 💊</span>
+   </div>
+   <div class="chatbox">
+     <input id="chatIn" placeholder="მკითხე რამე შენს არქივზე…" autocomplete="off">
+     <button class="btn btn-amber" id="chatGo">➤</button>
+   </div>
+ </div>
+</section>
+
+<div class="proc" id="proc">
+  <div class="ph sc-sea developing" id="procPh"><span class="glyph">${G.sea}</span></div>
+  <h2 id="procTitle">AI ლაბორატორია მუშაობს…</h2>
+  <div class="proc-steps" id="procSteps"></div>
+  <div class="result" id="procResult">
+    <p id="procResultTxt"><b>16 ფოტო</b> საჭიროებს შენს დადასტურებას —<br>დანარჩენი 231 უკვე თავის ადგილზეა.</p>
+    <button class="btn btn-amber" id="toInbox">ინბოქსში გადასვლა →</button>
+  </div>
+</div>
+
+<div class="trust" id="trust">
+  <div class="ov-head"><button id="trustClose">←</button><span class="t">Trust Level</span></div>
+  <div class="trust-body">
+    <div class="aperture">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="ring-o" cx="60" cy="60" r="56"/>
+        <g id="apBlades">
+          <line class="blade" x1="60" y1="10" x2="60" y2="26"/><line class="blade" x1="103" y1="35" x2="89" y2="43"/>
+          <line class="blade" x1="103" y1="85" x2="89" y2="77"/><line class="blade" x1="60" y1="110" x2="60" y2="94"/>
+          <line class="blade" x1="17" y1="85" x2="31" y2="77"/><line class="blade" x1="17" y1="35" x2="31" y2="43"/>
+        </g>
+        <circle class="glow" cx="60" cy="60" r="34" id="apGlow"/>
+        <circle class="iris" cx="60" cy="60" r="34" id="apIris"/>
+      </svg>
+    </div>
+    <h2>რამდენ სინათლეს გაატარებ?</h2>
+    <p class="tsub">დიაფრაგმასავით — რაც უფრო ღიაა, მით მეტს აკეთებს AI შენს გარეშე.<br>შენ ირჩევ ბალანსს.</p>
+    <div class="tslider"><input type="range" id="tRange" min="0" max="2" step="1" value="1" aria-label="ნდობის დონე"></div>
+    <div class="tlabels"><span data-l="0">სრული კონტროლი</span><span data-l="1" class="on">თანამშრომლობა</span><span data-l="2">ავტოპილოტი</span></div>
+    <div class="tdesc"><h4 id="tdTitle"></h4><p id="tdText"></p></div>
+    <div class="tsim">
+      <div class="cell"><div class="k" id="simAuto">231</div><div class="l">ფოტო დალაგდება ავტომატურად</div></div>
+      <div class="cell h"><div class="k" id="simAsk">16</div><div class="l">ფოტო შენს დასტურს ითხოვს</div></div>
+    </div>
+    <div class="tguard"><span class="ic">🛡</span><p><b>უცვლელი წესი:</b> წაშლას AI არასდროს წყვეტს მარტო — ნებისმიერ დონეზე, დესტრუქციული ქმედება ყოველთვის შენი გადაწყვეტილებაა. და ყველაფერი უკუქცევადია ერთი შეხებით.</p></div>
+    <button class="btn btn-amber" id="trustApply">დონის შენახვა</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov">
+  <div class="ov-head"><button id="ovClose">←</button><span class="t">AI Analysis · IMG_0214</span></div>
+  <div class="ov-body">
+    <div class="ph sc-sea ov-hero" id="ovHero"><span class="glyph">${G.sea}</span></div>
+    <div class="asec" id="a1">
+      <h5>ტექნიკური ანალიზი</h5>
+      <div class="qrow"><span>ხარისხი</span><div class="meter"><i data-w="92"></i></div><span class="mono">92</span></div>
+      <div class="qrow"><span>სიმკვეთრე</span><div class="meter"><i data-w="88"></i></div><span class="mono">88</span></div>
+      <div class="qrow"><span>განათება</span><div class="meter mid"><i data-w="76"></i></div><span class="mono">76</span></div>
+    </div>
+    <div class="asec" id="a2">
+      <h5>სახის ამოცნობა</h5>
+      <div class="face"><div class="ph sc-portrait fav"><span class="glyph">${G.person}</span></div><div><div class="fn">გიორგი</div><div class="fc">სანდოობა · 96%</div></div></div>
+    </div>
+    <div class="asec" id="a3">
+      <h5>ობიექტები და კონტექსტი</h5>
+      <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="chip ai">ზღვა</span><span class="chip ai">სანაპირო</span><span class="chip ai">მზის ჩასვლა</span><span class="chip ai">ადამიანი</span><span class="chip human">ოჯახური მოგზაურობა</span>
+      </div>
+    </div>
+    <div class="asec" id="a4">
+      <h5>ლოკაცია</h5>
+      <div style="font-size:14px;font-weight:600">ბათუმი, საქართველო</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">ახალი ბულვარი · GPS + ვიზუალური დადასტურება</div>
+    </div>
+    <div class="asec" id="a6">
+      <h5>Photo DNA · კავშირების ქსელი</h5>
+      <div class="dna-net">
+        <svg viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg">
+          <line class="lnk" x1="160" y1="75" x2="52" y2="30"/><line class="lnk" x1="160" y1="75" x2="52" y2="118"/>
+          <line class="lnk" x1="160" y1="75" x2="160" y2="22"/><line class="lnk" x1="160" y1="75" x2="160" y2="128"/>
+          <line class="lnk" x1="160" y1="75" x2="268" y2="30"/><line class="lnk" x1="160" y1="75" x2="268" y2="118"/>
+          <circle class="nd" cx="52" cy="30" r="17"/><text x="52" y="33">ვიდეო №8</text>
+          <circle class="nd" cx="52" cy="118" r="17"/><text x="52" y="121">PDF ×3</text>
+          <circle class="nd" cx="160" cy="22" r="15"/><text x="160" y="25">სესია №27</text>
+          <circle class="nd" cx="160" cy="128" r="15"/><text x="160" y="131">☂ 21°C</text>
+          <circle class="nd" cx="268" cy="30" r="17"/><text x="268" y="33">გიორგი +3</text>
+          <circle class="nd" cx="268" cy="118" r="17"/><text x="268" y="121">📍 რუკა</text>
+          <circle class="nd core" cx="160" cy="75" r="21"/><text class="core-t" x="160" y="78">ეს ფოტო</text>
+        </svg>
+      </div>
+      <div class="dna-cta">
+        <p>ამ მომენტთან დაკავშირებული კიდევ <b>47 მასალაა</b> — გინდა მთლიანად გაჩვენო?</p>
+        <button class="btn btn-amber" id="dnaOpen">ჩვენება</button>
+      </div>
+    </div>
+    <div class="asec" id="a7">
+      <h5>💊 ფოტო ექიმი</h5>
+      <div class="dna-cta">
+        <p>ამ კადრს <b>გაუმჯობესება</b> შეუძლია — განათება და სიმკვეთრე. ძველი ფოტოც გაქვს ერთი, აღდგენას რომ ითხოვს.</p>
+        <button class="btn btn-amber" id="docOpen">ჩვენება</button>
+      </div>
+    </div>
+    <div class="asec" id="a5">
+      <h5 id="exifT" style="cursor:pointer;user-select:none">EXIF ▸</h5>
+      <div class="exif" id="exifB" style="display:none">2026:08:02 19:47 · f/1.8 · 1/640s · ISO 50<br>4032×3024 · 3.1 MB · HEIC</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="sess" style="z-index:76">
+  <div class="ov-head"><button id="sessClose">←</button><span class="t">Session № 27 · Timeline Replay</span></div>
+  <div class="ov-body">
+    <div class="scard hot" style="cursor:default">
+      <div class="scard-top">
+        <div><div class="sn">სამუშაო სესია № 27</div><h3>სამშენებლო ობიექტი · Dresden</h3></div>
+        <span class="stime">08:12 — 16:48</span>
+      </div>
+      <div class="sstats">
+        <span class="sstat"><b>287</b><span>ფოტო</span></span>
+        <span class="sstat"><b>8</b><span>ვიდეო</span></span>
+        <span class="sstat"><b>3</b><span>დოკ.</span></span>
+        <span class="sstat ok"><b>4</b><span>მონაწილე</span></span>
+      </div>
+    </div>
+    <div class="asec in" style="margin-top:11px"><h5>დღე, როგორც ფილმი</h5>
+      <div class="timeline" id="tl">
+        <div class="trow amb"><div class="tt">08:12</div><div class="tl">📍 სახლიდან გახვედი</div><div class="td">Dresden-ის მიმართულებით · 34 კმ</div></div>
+        <div class="trow"><div class="tt">09:04</div><div class="tl">📸 პირველი ფოტო ობიექტზე</div><div class="mini-grid"><div class="ph sc-street"><span class="glyph"></span></div><div class="ph sc-city"><span class="glyph"></span></div><div class="ph sc-doc"><span class="glyph"></span></div></div></div>
+        <div class="trow"><div class="tt">10:15</div><div class="tl">📄 დოკუმენტის სკანი</div><div class="td">სამუშაო ნახაზი · PDF · 2.1 MB</div></div>
+        <div class="trow amb"><div class="tt">13:40</div><div class="tl">🍽 ლანჩი</div><div class="td">57 წუთი · ფოტო არ გადაგიღია 🙂</div></div>
+        <div class="trow"><div class="tt">15:30</div><div class="tl">🎬 ვიდეო-ფიქსაცია</div><div class="td">8 ვიდეო · სულ 14 წუთი</div></div>
+        <div class="trow amb"><div class="tt">16:48</div><div class="tl">📍 ობიექტი დატოვე</div><div class="td">სესია დაიხურა ავტომატურად</div></div>
+        <div class="trow"><div class="tt">19:00</div><div class="tl">📷 ოჯახის ფოტო</div><div class="td">ახალი სესია № 28 დაიწყო</div></div>
+      </div>
+    </div>
+    <div class="tguard" style="margin-top:2px"><span class="ic">✦</span><p>ეს სესია <b>ავტომატურად</b> შეიქმნა — დროის, GPS-ის და ვიზუალური კონტექსტის მიხედვით. შენ არაფერი გაგიკეთებია.</p></div>
+  </div>
+</div>
+
+<div class="overlay" id="muzaSheet" style="z-index:74">
+  <div class="ov-head"><button id="muzaSheetClose">←</button><span class="t">🌫 მუზა · შენი შემოქმედებითი მეგზური</span></div>
+  <div class="ov-body">
+   <div class="muza" id="muza">
+     <div class="muza-top">
+       <span class="wx">🌫</span>
+       <div class="mt">
+         <h4>მუზა · ხვალინდელი შანსი</h4>
+         <p>ხვალ დილით გორზე <b>ნისლი ჩამოწვება</b> — პეიზაჟისთვის იდეალურია, ძმაო. ოქროს საათი <b>07:40</b>-ზე დაემთხვევა. წახვალ?</p>
+       </div>
+     </div>
+     <div class="muza-meta">
+       <span class="chip ai">🌫 ნისლი 90%</span><span class="chip ai">🌅 ოქროს საათი 07:40</span><span class="chip">📅 შაბათი — თავისუფალი ხარ</span>
+     </div>
+     <div class="muza-btns" id="muzaBtns">
+       <button class="btn btn-amber" id="muzaYes">წავალ 🔥</button>
+       <button class="btn btn-ghost" id="muzaNo">ვერ ხვალ</button>
+     </div>
+     <div class="muza-done" id="muzaDone"><span>⏰</span><span>ჩავნიშნე — ხვალ <b>07:10</b>-ზე შეგახსენებ. კარგი კადრები გვქონდეს, ძმაო 🤝</span></div>
+     <button class="coach-toggle" id="coachToggle"><span>📸</span> ოსტატის რჩევა ხვალინდელი ნისლისთვის <span class="ar">▶</span></button>
+     <div class="coach" id="coach">
+       <div class="coach-tip" id="coachTip"></div>
+       <div class="coach-nav">
+         <span class="cn" id="coachN">1 / 3</span>
+         <button id="coachNext">შემდეგი რჩევა →</button>
+       </div>
+       <div class="coach-personal"><span class="ic">🎯</span><span>რატომ გეუბნები: შენს არქივში <b>14 ნისლიანი კადრია</b> — უმეტესობა მკრთალი გამოვიდა. ეს რჩევები ზუსტად იმ შეცდომებზეა.</span></div>
+     </div>
+   </div>
+   <div class="muza disc" id="muzaDisc">
+     <div class="muza-top">
+       <span class="wx">🧭</span>
+       <div class="mt">
+         <h4>მუზა · აღმოჩენა</h4>
+         <p>შაბათი მზიანია ☀️ და შენგან <b>15 კმ-ში</b> სამი მაგარი გადასაღები ადგილია, ძმაო — ორზე ჯერ არასდროს გიღია:</p>
+       </div>
+     </div>
+     <div class="spot" data-spot="უფლისციხე">
+       <div class="ph sc-mtn"><span class="glyph"></span></div>
+       <div class="si"><h5>უფლისციხე</h5><p>კლდეში ნაკვეთი ქალაქი · საუკეთესო: ოქროს საათი</p></div>
+       <span class="dist">13 კმ</span>
+     </div>
+     <div class="spot" data-spot="ატენის სიონი">
+       <div class="ph sc-forest"><span class="glyph"></span></div>
+       <div class="si"><h5>ატენის სიონი</h5><p>VII ს. ტაძარი, ტანას ხეობა · ჯერ არ გიღია 📍</p></div>
+       <span class="dist">12 კმ</span>
+     </div>
+     <div class="spot" data-spot="კვერნაქის ქედი">
+       <div class="ph sc-snow"><span class="glyph"></span></div>
+       <div class="si"><h5>კვერნაქის ქედი</h5><p>პანორამა მთელ ხეობაზე · ჯერ არ გიღია 📍</p></div>
+       <span class="dist">7 კმ</span>
+     </div>
+     <div class="muza-btns" id="discBtns">
+       <button class="btn btn-amber" id="discGo">მარშრუტი 🧭</button>
+       <button class="btn btn-ghost" id="discNo">სხვა დროს</button>
+     </div>
+     <div class="muza-done" id="discDone"><span>🧭</span><span id="discDoneTxt"></span></div>
+   </div>
+  </div>
+</div>
+
+<div class="expo" id="expo">
+  <div class="story-bars" id="expoBars"></div>
+  <div class="expo-head">
+    <span class="pic"><svg width="22" height="22" viewBox="0 0 96 96" aria-hidden="true"><g transform="translate(48,48)" fill="#241a03"><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(0.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(51.4)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(102.8)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(154.2)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(205.6)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(257.0)"/><path d="M14 -6 C 20 -14, 26 -26, 22 -42 C 34 -28, 36 -10, 18 2 Z" transform="rotate(308.4)"/></g></svg></span>
+    <div class="et">მუზა · ფოტო-დაზვერვა<span>რიო-დე-ჟანეირო · 4 წერტილი + გეგმა</span></div>
+    <button class="ex" id="expoX">✕</button>
+  </div>
+  <div class="expo-stage" id="expoStage"></div>
+  <div class="expo-nav"><span id="expoPrev"></span><span id="expoNext"></span></div>
+</div>
+
+<div class="overlay" id="doctor" style="z-index:79">
+  <div class="ov-head"><button id="docClose">←</button><span class="t">💊 ფოტო ექიმი · IMG_1998_scan</span></div>
+  <div class="ov-body">
+    <div style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:12px">1998 წლის დასკანერებული ფოტო — გახუნებული და ბუნდოვანი. <b style="color:var(--paper)">გაასრიალე ზოლი</b> და შეადარე:</div>
+    <div class="doc-wrap">
+      <div class="doc-layer doc-before sc-portrait"><span class="glyph"></span></div>
+      <div class="doc-layer doc-after sc-portrait" id="docAfter"><span class="glyph"></span></div>
+      <div class="doc-divider" id="docDiv"></div>
+      <span class="doc-lbl b">1998 · ორიგინალი</span>
+      <span class="doc-lbl a">✦ აღდგენილი</span>
+    </div>
+    <input type="range" class="doc-range" id="docRange" min="0" max="100" value="50" aria-label="შედარება">
+    <div class="doc-stats">
+      <div class="cell"><b>+64%</b><span>სიმკვეთრე</span></div>
+      <div class="cell"><b>+41%</b><span>ფერები</span></div>
+      <div class="cell"><b>−90%</b><span>ნაკაწრები</span></div>
+    </div>
+    <div class="doc-btns">
+      <button class="btn btn-amber" id="docKeep">აღდგენილის შენახვა ✓ (ორიგინალიც დარჩება)</button>
+      <button class="btn btn-ghost" id="docOrig">ორიგინალი მირჩევნია</button>
+    </div>
+  </div>
+</div>
+
+<div class="pin" id="pin">
+  <div class="plock">🔒</div>
+  <h2>პირადი მოგონება</h2>
+  <p class="psub">დეტალები შეტყობინებაში განზრახ არ ჩანს — გვერდით შეიძლება ვინმე იყოს. შეიყვანე PIN.</p>
+  <div class="pin-dots" id="pinDots"><i></i><i></i><i></i><i></i></div>
+  <div class="pad" id="pad">
+    <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+    <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+    <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+    <button class="fn" id="pinCancel">გაუქმება</button><button data-d="0">0</button><button class="fn" id="pinDel">⌫</button>
+  </div>
+  <div class="pdemo">დემო · ნებისმიერი 4 ციფრი</div>
+</div>
+
+<div class="overlay" id="mem" style="z-index:77">
+  <div class="ov-head"><button id="memClose">←</button><span class="t">🔒 პრივატული მოგონება</span></div>
+  <div class="ov-body">
+    <div class="mem-date">ზუსტად 1 წლის წინ · 16 ივლისი 2025</div>
+    <div class="mem-strip">
+      <div class="ph sc-sea developing"><span class="glyph"></span></div>
+      <div class="ph sc-portrait developing"><span class="glyph"></span></div>
+      <div class="ph sc-bday developing"><span class="glyph"></span></div>
+    </div>
+    <div class="sbflow" id="memFlow"></div>
+    <div class="collage" id="collage">
+      <div class="ph sc-sea big" style="--rr:-4deg;--dd:.15s"><span class="glyph"></span></div>
+      <div class="ph sc-portrait" style="--rr:6deg;--dd:.45s"><span class="glyph"></span></div>
+      <div class="ph sc-bday" style="--rr:-7deg;--dd:.75s"><span class="glyph"></span></div>
+      <div class="cap">ბათუმი · ერთი წლის შემდეგ ✨</div>
+    </div>
+    <div class="mem-share" id="memShare">
+      <button class="btn btn-ghost" id="shareFb">📘 Facebook-ზე გაზიარება</button>
+      <button class="btn btn-amber" id="shareKeep">მხოლოდ ჩემთვის შენახვა 🔒</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="thread" style="z-index:76">
+  <div class="ov-head"><button id="threadClose">←</button><span class="t">🧵 Thread № 18 · ცოცხალი ისტორია</span></div>
+  <div class="ov-body">
+    <div class="tcard" style="cursor:default;border-left-color:var(--cyan)">
+      <div class="tn">Thread № 18 · 2019 — 2020</div>
+      <h3>პოლონეთში გადასვლა</h3>
+      <div class="tmix"><span><b>526</b> ფოტო</span><span><b>3</b> ბილეთი</span><span><b>1</b> ხელშეკრულება</span><span><b>14</b> PDF</span></div>
+    </div>
+    <div class="asec in" style="margin-top:11px"><h5>ისტორია, ერთ ხაზზე</h5>
+      <div class="timeline" id="thl">
+        <div class="trow amb"><div class="tt">2019 · სექ 03</div><div class="tl">✈️ ბილეთი: თბილისი → ბერლინი</div><div class="td">PDF · პირველი ნაბიჯი</div></div>
+        <div class="trow"><div class="tt">2019 · სექ 05</div><div class="tl">📷 პირველი დღე Szczecin-ში</div><div class="mini-grid"><div class="ph sc-city"><span class="glyph"></span></div><div class="ph sc-street"><span class="glyph"></span></div><div class="ph sc-snow"><span class="glyph"></span></div></div></div>
+        <div class="trow"><div class="tt">2019 · სექ 12</div><div class="tl">📄 სამუშაო ხელშეკრულება</div><div class="td">Ideal Ausbau · PDF · დაცულ არქივში</div></div>
+        <div class="trow amb"><div class="tt">2019 · ოქტ 01</div><div class="tl">💶 პირველი ხელფასის ქვითარი</div><div class="td">PDF · „ღირდა ამად" 🙂</div></div>
+        <div class="trow"><div class="tt">2019 · დეკ</div><div class="tl">🗺 შენი უბნის რუკა + 84 ფოტო</div><div class="td">პირველი ზამთარი · თოვლი</div></div>
+        <div class="trow"><div class="tt">2020 · მარ 15</div><div class="tl">📝 შენიშვნა: „უკვე ვგრძნობ თავს სახლში"</div></div>
+        <div class="trow amb"><div class="tt">2020 · აგვ</div><div class="tl">🏠 დაბრუნება · 118 ფოტო</div><div class="td">Thread დაიხურა — მაგრამ ისტორია დარჩა</div></div>
+      </div>
+    </div>
+    <div class="tguard" style="margin-top:2px"><span class="ic">🧵</span><p>ეს Thread <b>ავტომატურად</b> შეიკრა — ფოტოები, ბილეთები, დოკუმენტები და შენიშვნები ერთი ცხოვრებისეული ხაზის გარშემო. შენ მხოლოდ იცხოვრე.</p></div>
+  </div>
+</div>
+`;
+
+/* ============ navigation ============ */
+function go(id){
+  $$('.screen').forEach(s=>s.classList.remove('active'));
+  $('#s-'+id).classList.add('active');
+  $$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.t===id));
+  if(id==='home')animateHome();
+}
+$$('.tab').forEach(t=>t.onclick=()=>go(t.dataset.t));
+
+/* ============ dashboard ============ */
+let homeAnimated=false;
+function animateHome(){
+  if(homeAnimated)return;homeAnimated=true;
+  $$('#s-home [data-count]').forEach(el=>{
+    const end=+el.dataset.count;const t0=performance.now();
+    const step=n=>{const p=Math.min((n-t0)/1100,1);el.textContent=Math.round(end*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step)};
+    requestAnimationFrame(step);
+  });
+  setTimeout(()=>{const pct=93;$('#ringVal').style.strokeDashoffset=226-226*pct/100;
+    const t0=performance.now();const st=n=>{const p=Math.min((n-t0)/1500,1);$('#ringPct').textContent=Math.round(pct*p)+'%';if(p<1)requestAnimationFrame(st)};requestAnimationFrame(st);
+  },200);
+}
+
+/* processing sequence */
+const PSTEPS=['ხარისხის შემოწმება','დუბლიკატების ძებნა','სახეების ამოცნობა','ლოკაციის დადგენა','კატეგორიზაცია'];
+$('#procSteps').innerHTML=PSTEPS.map((s,i)=>`<div class="pstep" data-i="${i}"><span class="ic">•</span>${s}</div>`).join('');
+let procTarget='inbox';
+function runProc(title,resultHTML,btnText,target){
+  procTarget=target;
+  $('#procTitle').textContent=title;
+  $('#procResultTxt').innerHTML=resultHTML;
+  $('#toInbox').textContent=btnText;
+  const proc=$('#proc');proc.classList.add('show');
+  $('#procResult').classList.remove('show');
+  const phEl=$('#procPh');phEl.classList.remove('developed','scanline');phEl.classList.add('developing');
+  $$('#procSteps .pstep').forEach(p=>{p.classList.remove('done','run');p.querySelector('.ic').textContent='•'});
+  setTimeout(()=>{phEl.classList.add('scanline');phEl.classList.add('developed')},400);
+  PSTEPS.forEach((_,i)=>{
+    setTimeout(()=>{
+      $$('#procSteps .pstep').forEach(p=>p.classList.remove('run'));
+      const el=$(`#procSteps .pstep[data-i="${i}"]`);el.classList.add('run');
+      setTimeout(()=>{el.classList.remove('run');el.classList.add('done');el.querySelector('.ic').textContent='✓';
+        if(i===PSTEPS.length-1)$('#procResult').classList.add('show');
+      },620);
+    },i*750+300);
+  });
+}
+$('#startProc').onclick=()=>runProc('AI ლაბორატორია მუშაობს…','<b>16 ფოტო</b> საჭიროებს შენს დადასტურებას —<br>დანარჩენი 231 უკვე თავის ადგილზეა.','ინბოქსში გადასვლა →','inbox');
+$('#resetChaos').onclick=()=>runProc('ქაოსი ნულდება… ⟲','<b>438 დუბლიკატი</b> გაქრა · <b>12 ახალი სესია</b> შეიკრა ·<br>1,204 სქრინშოტი დალაგდა. არქივი სუფთაა ✨','შედეგის ნახვა →','sess');
+$('#toInbox').onclick=()=>{$('#proc').classList.remove('show');go(procTarget)};
+$('#proc').addEventListener('click',e=>{if(e.target.id==='proc')$('#proc').classList.remove('show')});
+
+/* ============ inbox ============ */
+let trustLvl=1;
+const isDestructive=c=>c.dup||c.blur;
+const visibleCards=()=>INBOX.filter(c=>!c.done&&(trustLvl<2||isDestructive(c)));
+function renderInbox(){
+  const cards=visibleCards();
+  const note=$('#modeNote'),ntx=$('#modeNoteTxt');
+  note.classList.remove('show','auto','manual');
+  if(trustLvl===2){note.classList.add('show','auto');ntx.innerHTML='<b>ავტოპილოტი ჩართულია.</b> AI-მ 245 ფოტო თავად დაალაგა — შენთან მხოლოდ წაშლის გადაწყვეტილებები მოდის.'}
+  if(trustLvl===0){note.classList.add('show','manual');ntx.innerHTML='<b>სრული კონტროლი.</b> AI არაფერს აკეთებს დაუკითხავად — რიგში 247 ფოტოა, აქ პირველი ექვსია.'}
+  $('#inboxEmpty').classList.toggle('show',cards.length===0);
+  $('#inboxList').innerHTML=cards.map(c=>`
+  <div class="icard" data-c="${c.id}">
+    <div class="icard-row">
+      ${ph(c,'developing')}
+      <div class="icard-info">
+        <div class="chips">
+          <span class="chip human">${c.cat}</span>
+          ${c.loc?`<span class="chip">📍 ${c.loc}</span>`:''}
+          ${c.who?`<span class="chip">👤 ${c.who}</span>`:''}
+        </div>
+        <div class="conf-row ${c.conf<92?'mid':''}"><div class="meter ${c.conf<92?'mid':''}"><i data-w="${c.conf}"></i></div>${c.conf}%</div>
+        <div class="ai-note">${c.note}</div>
+      </div>
+    </div>
+    <div class="edit-panel" id="ep-${c.id}">
+      <div class="lbl">აირჩიე კატეგორია</div>
+      <div class="opts">${CATS.map(k=>`<span class="chip ${k===c.cat?'sel':''}" data-k="${k}">${k}</span>`).join('')}</div>
+    </div>
+    <div class="icard-actions">
+      <button class="btn btn-amber" data-act="ok">${c.dup?'საუკეთესოს დატოვება':c.blur?'მაინც შენახვა':'დადასტურება'}</button>
+      <button class="btn btn-ghost" data-act="edit">რედაქტირება</button>
+      <button class="btn btn-danger" data-act="del">წაშლა</button>
+    </div>
+  </div>`).join('');
+  requestAnimationFrame(()=>setTimeout(()=>{
+    $$('#inboxList .ph.developing').forEach((el,i)=>setTimeout(()=>{el.classList.add('scanline','developed')},i*130));
+    $$('#inboxList .meter i').forEach(m=>m.style.width=m.dataset.w+'%');
+  },80));
+}
+function updateBadge(){
+  const pendingAll=INBOX.filter(c=>!c.done).length;
+  const vis=visibleCards().length;
+  let n=vis;
+  if(pendingAll>0){if(trustLvl===0)n=241+pendingAll;else if(trustLvl===1)n=10+pendingAll}
+  const b=$('#inboxBadge');b.textContent=n>99?'99+':n;b.classList.toggle('hide',n===0);
+  if($('#needK'))$('#needK').textContent=n>99?'99+':n;
+  $('#inboxEmpty').classList.toggle('show',vis===0);
+  const sub=$('#s-home .sub');
+  if(sub)sub.innerHTML=n===0?'ყველაფერი წესრიგშია — ინბოქსი ცარიელია ✨':`შენი არქივი თითქმის წესრიგშია — <b style="color:var(--amber)">${n>99?'99+':n} ფოტო</b> შენს გადაწყვეტილებას ელოდება.`;
+}
+renderInbox();updateBadge();
+$('#inboxList').addEventListener('click',e=>{
+  const chip=e.target.closest('.edit-panel .chip');
+  if(chip){const p=chip.closest('.edit-panel');p.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));chip.classList.add('sel');
+    const card=chip.closest('.icard');const data=INBOX.find(x=>x.id==card.dataset.c);
+    if(data)data.cat=chip.dataset.k;
+    card.querySelector('.chips .chip.human').textContent=chip.dataset.k;return}
+  const btn=e.target.closest('[data-act]');if(!btn)return;
+  const card=btn.closest('.icard');const act=btn.dataset.act;
+  if(act==='edit'){card.querySelector('.edit-panel').classList.toggle('show');return}
+  const data=INBOX.find(x=>x.id==card.dataset.c);
+  card.classList.add(act==='del'?'leave-del':'leave');
+  setTimeout(()=>{if(data)data.done=true;card.remove();updateBadge()},380);
+  toast(act==='del'?'ფოტო წაიშალა':'შენახულია ჭკვიან ბიბლიოთეკაში',
+    ()=>{if(data)data.done=false;renderInbox();updateBadge();});
+});
+
+/* thumbnail → analysis overlay */
+document.addEventListener('click',e=>{
+  const p=e.target.closest('#s-lib .ph, #inboxList .ph, #qGrid .ph');
+  if(!p)return;openAnalysis();
+});
+function openAnalysis(){
+  const ov=$('#ov');ov.classList.add('show');
+  const hero=$('#ovHero');hero.classList.remove('developed','scanline');hero.classList.add('developing');
+  $$('.asec').forEach(a=>a.classList.remove('in'));
+  $$('#ov .meter i').forEach(m=>m.style.width='0');
+  setTimeout(()=>{hero.classList.add('scanline','developed')},250);
+  ['a1','a2','a3','a4','a6','a7','a5'].forEach((id,i)=>setTimeout(()=>{
+    $('#'+id).classList.add('in');
+    if(id==='a1')$$('#a1 .meter i').forEach(m=>m.style.width=m.dataset.w+'%');
+  },600+i*280));
+}
+$('#ovClose').onclick=()=>$('#ov').classList.remove('show');
+$('#exifT').onclick=()=>{const b=$('#exifB');const o=b.style.display==='none';b.style.display=o?'block':'none';$('#exifT').textContent=o?'EXIF ▾':'EXIF ▸'};
+
+/* ============ library ============ */
+$('#filterRow').innerHTML=FILTERS.map(([k,l],i)=>`<button class="fchip${i===0?' active':''}" data-f="${k}">${l}</button>`).join('');
+function renderLib(f='all'){
+  const items=LIB.filter(p=>f==='all'||p.tags.includes(f));
+  $('#libGrid').innerHTML=items.map(p=>ph(p)).join('');
+  $('#libCount').textContent=`ნაპოვნია ${items.length} ფოტო · ${f==='all'?'მთელი არქივი':FILTERS.find(x=>x[0]===f)[1]}`;
+}
+renderLib();
+$('#filterRow').addEventListener('click',e=>{
+  const c=e.target.closest('.fchip');if(!c)return;
+  $$('.fchip').forEach(x=>x.classList.remove('active'));c.classList.add('active');
+  renderLib(c.dataset.f);
+});
+
+/* ============ search ============ */
+const QMAP=[
+ {k:['მანქან','ავტო'],n:342,txt:'ნაპოვნია <span class="found">342 ფოტო</span> მანქანებით — 2019-დან დღემდე. ყველაზე ხშირად: თბილისი და გორი.',pics:['street','city','street']},
+ {k:['პოლონეთ','შჩეცინ'],n:526,txt:'შენი პირველი წელი პოლონეთში: <span class="found">526 ფოტო</span>, ძირითადად შჩეცინი · 2019 სექ — 2020 აგვ.',pics:['city','snow','street']},
+ {k:['დოკუმენტ','ხელშეკრულ'],n:78,txt:'2024 წლის <span class="found">78 დოკუმენტი</span> — ხელშეკრულებები, ქვითრები, ცნობები. ყველა დაცულ არქივშია.',pics:['doc','doc','doc']},
+ {k:['ზღვ','ბათუმ','სანაპირო'],n:214,txt:'<span class="found">214 ფოტო</span> ზღვასთან — უმეტესად ბათუმი, აგვისტოს ოქროს საათი.',pics:['sea','sea','portrait']},
+ {k:['გიორგი'],n:187,txt:'გიორგი ჩანს <span class="found">187 ფოტოზე</span> — პირველად 2021 წელს, ბოლოს გუშინ.',pics:['portrait','sea','bday']},
+ {k:['მთ','ყაზბეგ'],n:96,txt:'<span class="found">96 ფოტო</span> მთებში — ყაზბეგი, გუდაური, ბორჯომი.',pics:['mtn','snow','forest']}
+];
+const SCENE_G={sea:'sea',mtn:'mtn',city:'city',portrait:'person',doc:'doc',forest:'tree',snow:'snow',bday:'cake',food:'food',street:'car'};
+function doSearch(q){
+  if(!q.trim())return;
+  if(['ქურთუკ','მეცვა','ვიდექ','მახსოვს','გამახსენე'].some(k=>q.includes(k)))return startSB(q);
+  $('#sbFlow').innerHTML='';
+  const hit=QMAP.find(m=>m.k.some(k=>q.includes(k)));
+  const r=hit||{n:Math.floor(Math.random()*40)+12,txt:`გავიგე. ნაპოვნია <span class="found">${Math.floor(Math.random()*40)+12} ფოტო</span>, რომლებიც შენს აღწერას ემთხვევა.`,pics:['forest','sea','mtn']};
+  $('#airesp').classList.remove('show');$('#qGrid').innerHTML='';
+  setTimeout(()=>{
+    $('#airespTxt').innerHTML=r.txt;$('#airesp').classList.add('show');
+    $('#qGrid').innerHTML=r.pics.concat(r.pics).slice(0,6).map((sc,i)=>ph({id:600+i,sc,g:SCENE_G[sc]},'developing')).join('');
+    setTimeout(()=>$$('#qGrid .ph').forEach((el,i)=>setTimeout(()=>el.classList.add('scanline','developed'),i*110)),60);
+  },350);
+}
+$('#qGo').onclick=()=>doSearch($('#q').value);
+$('#q').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch($('#q').value)});
+$$('.sugg .chip').forEach(c=>c.onclick=()=>{$('#q').value=c.dataset.q;doSearch(c.dataset.q)});
+
+/* ============ second brain ============ */
+const sbBody=()=>$('#s-search .screen-body');
+const sbScroll=()=>{sbBody().scrollTop=1e5};
+function sbUser(t){$('#sbFlow').insertAdjacentHTML('beforeend',`<div class="sb-u">${t}</div>`);sbScroll()}
+function sbBot(html,q=false){$('#sbFlow').insertAdjacentHTML('beforeend',`<div class="sb-b${q?' q':''}"><span class="av">${q?'?':'✦'}</span><div class="bt">${html}</div></div>`);sbScroll()}
+function sbReplies(list){
+  $('#sbFlow').insertAdjacentHTML('beforeend',`<div class="sb-replies">${list.map((r,i)=>`<span class="chip human" data-r="${i}">${r.t}</span>`).join('')}</div>`);
+  const el=$('#sbFlow').lastElementChild;
+  el.addEventListener('click',e=>{const c=e.target.closest('[data-r]');if(!c)return;el.remove();list[+c.dataset.r].fn()});
+  sbScroll();
+}
+const sbPick=(items,clickable=false)=>`<div class="pick-grid">${items.map((p,i)=>`<div class="pick${clickable?' cl':''}" data-p="${i}"><div class="ph sc-${p.sc}"><span class="glyph">${G[SCENE_G[p.sc]]}</span></div><div class="pd">${p.d}</div></div>`).join('')}</div>`;
+function startSB(qtext){
+  $('#airesp').classList.remove('show');$('#qGrid').innerHTML='';
+  const f=$('#sbFlow');f.innerHTML='';
+  sbUser(qtext);
+  setTimeout(()=>{
+    sbBot(`ვიპოვე ✓ &nbsp;<b>2025 წლის 18 ნოემბერი</b> · Szczecin · Ideal Ausbau-ს ობიექტი.<br>იმ დღეს გადაიღე <b>34 ფოტო</b>, 2 ვიდეო და მიიღე 1 PDF.${sbPick([{sc:'street',d:'18 ნოე · 09:12'},{sc:'city',d:'18 ნოე · 11:40'},{sc:'doc',d:'18 ნოე · 14:05'}])}`);
+  },750);
+  setTimeout(()=>{
+    sbBot(`მაგრამ, შაკო, სანამ გავხსნი — ერთი კითხვა მაქვს.<br>ეს ფოტო ბოლოს <span class="amb">4 წლის წინ</span> ნახე. დარწმუნებული ხარ, რომ სწორედ ამას ეძებ?`,true);
+  },2300);
+  setTimeout(()=>{
+    sbReplies([
+      {t:'კი, ეს არის ✓',fn:sbYes},
+      {t:'არა… იმ დღეს წვიმდა ☂',fn:sbRain}
+    ]);
+  },3000);
+}
+function sbYes(){
+  sbUser('კი, ეს არის ✓');
+  setTimeout(()=>{sbBot('მშვენიერია ✨ ვხსნი სრულ ანალიზთან ერთად.');setTimeout(openAnalysis,900)},600);
+}
+function sbRain(){
+  sbUser('არა… იმ დღეს წვიმდა ☂');
+  setTimeout(()=>{
+    sbBot(`გასაგებია — ამინდის არქივს ვადარებ… ☂<br>იმ პერიოდში Szczecin-ში წვიმიანი დღე მხოლოდ <b>სამი</b> იყო: 11, 14 და 21 ნოემბერი. აი ისინი — რომელია შენი?${sbPick([{sc:'snow',d:'11 ნოემბერი'},{sc:'street',d:'14 ნოემბერი'},{sc:'forest',d:'21 ნოემბერი'}],true)}`);
+    const grid=$('#sbFlow').lastElementChild.querySelector('.pick-grid');
+    grid.addEventListener('click',e=>{
+      const p=e.target.closest('.pick');if(!p||grid.dataset.done)return;grid.dataset.done='1';
+      p.classList.add('sel');
+      const day=p.querySelector('.pd').textContent;
+      setTimeout(()=>{
+        sbUser(`${day} — ეს არის! ✓`);
+        setTimeout(()=>{
+          sbBot('ვიცოდი, რომ ვიპოვიდით 🤝');
+          $('#sbFlow').insertAdjacentHTML('beforeend',`<div class="sb-learn"><span class="ic">🧠</span><span><b>Second Brain განახლდა:</b> „გიორგი + მანქანა + წვიმა" → ${day}. შემდეგ ჯერზე ამ მოგონებას მყისიერად ვიპოვი.</span></div>`);
+          sbScroll();toast('Second Brain-მა ისწავლა ✓');
+          setTimeout(openAnalysis,1600);
+        },700);
+      },350);
+    });
+  },800);
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-sb]'))startSB('ლურჯი ქურთუკი მეცვა, გიორგისთან ვიდექი მანქანასთან… სად არის ეს ფოტო?');
+});
+
+/* ============ assistant ============ */
+const ANS={
+ job:'ვიპოვე ✦ შენი პირველი სამსახური — <b>2019 წელი</b>, 12 ფოტო პირველი სამუშაო დღიდან. გახსოვს ეს დღე?',
+ dup:'ამ დროისთვის არქივში <b>438 დუბლიკატია</b> — 2.1 GB. ერთი დაჭერით გავასუფთავებ და მხოლოდ საუკეთესო ვერსიებს დავტოვებ.',
+ year:'შევქმენი ალბომი <b>„2026 — წელი ერთი შეხედვით"</b>: 1,204 ფოტო, 14 მოვლენა, 6 მოგზაურობა. გინდა გარეკანიც შევურჩიო?',
+ night:'📸 <b>ღამის გადაღების 3 წესი</b> — და ეს ზოგადი ლექცია არაა: შენი ბოლო 20 ღამის კადრიდან <b>8 ბუნდოვანი</b> იყო, ამიტომ: 1) ჩართე <b>ღამის რეჟიმი</b> — ის რამდენიმე კადრს აერთებს; 2) ტელეფონი <b>დააფიქსირე</b> — კედელი, მაგიდა, მუხლი; 3) განათებულ ობიექტზე <b>ხელით დააფოკუსე</b> და ექსპოზიცია ოდნავ დასწიე. ხვალვე სცადე 🙂'
+};
+const PICS={job:['portrait','doc','city'],dup:['street','street','street'],year:['sea','mtn','bday'],night:['city','snow','street']};
+function chatSay(userTxt,ansHTML,pics){
+  const chat=$('#chat');
+  chat.insertAdjacentHTML('beforeend',`<div class="msg user">${userTxt}</div>`);
+  const ty=$('#typing');ty.classList.add('show');
+  chat.parentElement.scrollTop=1e5;
+  setTimeout(()=>{
+    ty.classList.remove('show');
+    chat.insertAdjacentHTML('beforeend',`<div class="msg ai">${ansHTML}${pics?`<div class="mini-grid">${pics.map((sc,i)=>ph({id:700+Math.floor(Math.random()*99)+i,sc,g:SCENE_G[sc]},'',false)).join('')}</div>`:''}</div>`);
+    chat.parentElement.scrollTop=1e5;
+  },1200);
+}
+$('#quick').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c)return;
+  chatSay(c.textContent,ANS[c.dataset.a],PICS[c.dataset.a]);
+});
+const CHAT_KB=[
+ {k:['დუბლიკატ','ასლ'],a:ANS.dup,p:PICS.dup},
+ {k:['ღამ','ბნელ'],a:ANS.night,p:PICS.night},
+ {k:['სამსახურ','სამუშაო'],a:ANS.job,p:PICS.job},
+ {k:['ალბომ','წლის'],a:ANS.year,p:PICS.year},
+ {k:['სესი'],a:'ბოლო კვირაში <b>4 სესია</b> შეიკრა — მათ შორის № 27 (Dresden, 287 ფოტო). სესიების ტაბზე ყველა გელოდება.',p:['street','city','doc']},
+ {k:['ზღვ','ბათუმ'],a:'<b>214 ფოტო</b> გაქვს ზღვასთან — უმეტესად ბათუმი, აგვისტოს ოქროს საათი. ერთი მათგანი შარშანდელი მოგონებაა 🔒',p:['sea','sea','portrait']},
+ {k:['გიორგი'],a:'გიორგი ჩანს <b>187 ფოტოზე</b> — პირველად 2021-ში, ბოლოს გუშინ. საერთო სესია: 12.',p:['portrait','sea','bday']},
+ {k:['მთ','ყაზბეგ','მთებ'],a:'<b>96 ფოტო</b> მთებში: ყაზბეგი, გუდაური, ბორჯომი. საუკეთესო შენი ყაზბეგის სესიაშია (№ 25).',p:['mtn','snow','forest']},
+ {k:['დოკუმენტ','ხელშეკრულ','pdf','PDF'],a:'დაცულ არქივში <b>312 დოკუმენტია</b> — ხელშეკრულებები, ქვითრები, ცნობები. გალერეაში არ ჩანს, ძებნით კი მყისვე ამოდის.',p:['doc','doc','doc']},
+ {k:['მოგონებ','წლის წინ'],a:'ერთი დალუქული მოგონება გელოდება 🔒 — მთავარ ეკრანზეა, PIN-ით. დეტალებს აქ არ გავამხელ 😉',p:null},
+ {k:['ნისლ','ამინდ','წვიმ'],a:'ხვალ დილით გორზე <b>ნისლია</b> 🌫 — მუზამ უკვე გაგიმზადა გეგმა და ოსტატმა 3 რჩევა. ბანერზე დააჭირე ან მუზას რიგს მთავარზე.',p:null},
+ {k:['გამარჯობა','სალამი','ძმაო','როგორ ხარ'],a:'სალამი, ძმაო 🤝 არქივი წესრიგშია: 16 ფოტო გელოდება ინბოქსში, ერთი მოგონება — სეიფში. რით დაგეხმარო?',p:null},
+ {k:['მადლობ'],a:'ჩემი საქმეა, ძმაო 🤝 შენ იღებ — მე ვალაგებ.',p:null}
+];
+/* --- user albums engine --- */
+const ALBUMS=[];
+const albCover={'ზღვ':'sea','ბარსელონ':'sea','ესპანეთ':'sea','მთ':'mtn','დოკ':'doc','ღამ':'city','ოჯახ':'bday','ბუნებ':'forest'};
+function renderAlbums(){
+  $('#albHead').style.display=ALBUMS.length?'flex':'none';
+  $('#albList').innerHTML=ALBUMS.map(a=>albCardHTML(a)).join('');
+}
+function albCardHTML(a){
+  return `<div class="acard"><div class="ph sc-${a.sc}"><span class="glyph">${G[SCENE_G[a.sc]]}</span></div><div class="ai-i"><h5>${a.name}</h5><p>${a.n} ფოტო · შეიქმნა ბრძანებით</p></div><span class="who">${a.who}</span></div>`;
+}
+function addAlbum(name,who,n,sc){const a={name,who,n,sc};ALBUMS.push(a);renderAlbums();return a}
+function albRespond(userTxt,list,intro){
+  chatSay(userTxt,`${intro}<div class="alb-mini">${list.map(a=>albCardHTML(a)).join('')}</div>📚 ორივე ბიბლიოთეკაშია — „ჩემი ალბომები" განყოფილებაში ✓`,null);
+}
+function spainDemo(userTxt){
+  const a1=addAlbum('მე და ბარსელონა','მხოლოდ შენ',34,'sea');
+  const a2=addAlbum('ჩვენ და ბარსელონა','შენ + დიანა',52,'sea');
+  albRespond(userTxt,[a1,a2],'გავაკეთე, ძმაო ✓ ესპანეთის 86 ფოტო <b>სახეებით გავფილტრე</b>: სადაც მარტო შენ ხარ — ერთში, სადაც დიანასთან ერთად — მეორეში:');
+  toast('2 ალბომი შეიქმნა 📚');
+}
+function parseAlbumCmd(q){
+  const ql=q.toLowerCase();
+  if(!(ql.includes('ალბომ')&&(ql.includes('შექმენ')||ql.includes('გააკეთ')||ql.includes('დაარქვ'))))return false;
+  if((ql.includes('ესპანეთ')||ql.includes('ბარსელონ'))&&(ql.includes('დიანა')||ql.includes('ჩემი')||ql.includes('ჩვენ'))){spainDemo(q);return true}
+  let name=null;
+  const qm=q.match(/[„«"']([^„«»""']+)[«»""']/);
+  if(qm)name=qm[1].trim();
+  if(!name){const dm=q.match(/დაარქვი\s+(.+)$/);if(dm)name=dm[1].replace(/[.!?]+$/,'').trim()}
+  if(!name)name='ახალი ალბომი';
+  let sc='forest';for(const k in albCover){if(ql.includes(k)){sc=albCover[k];break}}
+  const a=addAlbum(name,'შენი არჩევანი',Math.floor(Math.random()*80)+15,sc);
+  albRespond(q,[a],`მზადაა ✓ ალბომი <b>„${a.name}"</b> შეიქმნა:`);
+  toast('ალბომი შეიქმნა 📚');
+  return true;
+}
+$('#chipDoc')&&($('#chipDoc').onclick=()=>{chatSay('ძველი ფოტო აღადგინე 💊','ვიპოვე ერთი კანდიდატი — <b>1998 წლის დასკანერებული ფოტო</b>, გახუნებული. ვმკურნალობ… მზადაა, შეადარე ▶',null);setTimeout(openDoctor,2200)});
+$('#chipRio')&&($('#chipRio').onclick=()=>rioDemo('მივდივარ რიოში — მომიმზადე ფოტო-გეგმა 🇧🇷'));
+$('#chipSpain').onclick=()=>spainDemo('შექმენი ესპანეთის ალბომები — ერთი მხოლოდ ჩემი, მეორე დიანასთან ერთად');
+/* --- expedition clip --- */
+const EXPO=[
+ {sc:'sea',g:'sea',en:'წერტილი 01',t:'კოპაკაბანას სანაპირო',w:'🌅 მზის ამოსვლა · 05:50',tip:'შავ-თეთრი ტალღოვანი ტროტუარი + ცარიელი პლაჟი — <b>მხოლოდ გამთენიისას</b>. ოსტატი: დაბალი კუთხე, ტროტუარის ხაზები კადრში შეიყვანე.'},
+ {sc:'mtn',g:'mtn',en:'წერტილი 02',t:'ქრისტე მაცხოვარი · კორკოვადუ',w:'🌌 ლურჯი საათი · 18:20',tip:'ყველა შუადღეს ადის — <b>შენ საღამოს ადი</b>: ქალაქის შუქები + ლურჯი ცა. ოსტატი: HDR ჩართე, ხალხს ზურგი აქციე.'},
+ {sc:'street',g:'car',en:'წერტილი 03',t:'სანტა-ტერეზას უბანი',w:'🌇 ოქროს საათი · 16:30',tip:'ფერადი კიბეები, ტრამვაი, გრაფიტი — <b>დეტალების სამოთხე</b>. ოსტატი: პორტრეტ-რეჟიმი, ფონად კედლების ფერები.'},
+ {sc:'city',g:'city',en:'წერტილი 04',t:'ლაპას თაღები · ღამე',w:'🌙 ღამე · 21:00',tip:'ღამის ცხოვრება + განათებული თაღები. ოსტატი: <b>Night Mode</b>, ტელეფონი მოაჯირს მიაყრდენი — გახსოვს ჩვენი წესი 🙂'},
+ {sc:'forest',g:'tree',en:'დასკვნა',t:'გეგმა შენახულია ✓',w:'🧵 Thread «რიო 2026» გაიხსნა',tip:'დაბრუნებისას ფოტოები <b>თავად ჩალაგდება</b> ამ წერტილების მიხედვით — შენ მხოლოდ გადაიღე, ძმაო 🤝'}
+];
+let expoI=0,expoTimer=null;
+function expoRender(){
+  $('#expoBars').innerHTML=EXPO.map((_,i)=>`<i class="${i<expoI?'done':i===expoI?'run':''}"></i>`).join('');
+  $('#expoStage').innerHTML=EXPO.map((s,i)=>`<div class="expo-slide${i===expoI?' active':''}"><div class="bg sc-${s.sc}"><span class="glyph">${G[s.g]}</span></div><div class="shade"></div><div class="expo-cap"><div class="en">${s.en}</div><h3>${s.t}</h3><span class="when">${s.w}</span><div class="tip">${s.tip}</div></div></div>`).join('');
+  clearTimeout(expoTimer);
+  if(expoI<EXPO.length-1)expoTimer=setTimeout(()=>{expoI++;expoRender()},4200);
+}
+function openExpo(){expoI=0;$('#expo').classList.add('show');expoRender()}
+function closeExpo(){clearTimeout(expoTimer);$('#expo').classList.remove('show');
+  if(!ALBUMS.some(a=>a.name==='რიო 2026 · ფოტო-დაზვერვა')){addAlbum('რიო 2026 · ფოტო-დაზვერვა','დაზვერვის გეგმა',4,'sea');toast('Thread «რიო 2026» გაიხსნა 🧵')}}
+/* --- photo doctor --- */
+$$('#doctor .doc-layer').forEach(p=>{p.querySelector('.glyph').innerHTML=G.person});
+function openDoctor(){$('#ov').classList.remove('show');$('#doctor').classList.add('show');$('#docRange').value=50;docPaint(50)}
+function docPaint(v){$('#docAfter').style.clipPath=`inset(0 ${100-v}% 0 0)`;$('#docDiv').style.left=v+'%'}
+$('#docRange').addEventListener('input',e=>docPaint(+e.target.value));
+document.addEventListener('click',e=>{if(e.target.closest('#docOpen'))openDoctor()});
+$('#docClose').onclick=()=>$('#doctor').classList.remove('show');
+$('#docKeep').onclick=()=>{$('#doctor').classList.remove('show');toast('აღდგენილი შენახულია · ორიგინალი — სეიფში ✓')};
+$('#docOrig').onclick=()=>{$('#doctor').classList.remove('show');toast('ორიგინალი დარჩა — შენი არჩევანია 🤝')};
+$('#expoX').onclick=closeExpo;
+$('#expoNext').onclick=()=>{if(expoI<EXPO.length-1){expoI++;expoRender()}else closeExpo()};
+$('#expoPrev').onclick=()=>{if(expoI>0){expoI--;expoRender()}};
+function rioDemo(userTxt){
+  chatSay(userTxt,'რიო?! მაგარი არჩევანია, ძმაო 🇧🇷 წამი — ვკრებ კადრებს, ამინდს, მზის კალენდარს… მზადაა: შენი <b>ფოტო-დაზვერვის კლიპი</b> ▶',null);
+  setTimeout(openExpo,2400);
+}
+function chatFree(){
+  const q=$('#chatIn').value.trim();if(!q)return;
+  $('#chatIn').value='';
+  if(q.toLowerCase().includes('რიო')||((q.includes('მივდივარ')||q.includes('მოგზაურ'))&&q.length>6)){rioDemo(q);return}
+  if(parseAlbumCmd(q))return;
+  const hit=CHAT_KB.find(m=>m.k.some(k=>q.toLowerCase().includes(k.toLowerCase())));
+  if(hit)chatSay(q,hit.a,hit.p);
+  else chatSay(q,`გავიგე 🙂 ამ პროტოტიპში ჩემი ტვინი ჯერ სცენარებზეა — ცოცხალ ვერსიაში ამაზე ზუსტ პასუხს გავცემდი შენი არქივიდან. სცადე მკითხო: <b>დუბლიკატებზე</b>, <b>სესიებზე</b>, <b>ღამის გადაღებაზე</b>, <b>გიორგიზე</b> ან <b>ზღვის ფოტოებზე</b>.`,null);
+}
+$('#chatGo').onclick=chatFree;
+$('#chatIn').addEventListener('keydown',e=>{if(e.key==='Enter')chatFree()});
+
+/* ============ living workspace ============ */
+$$('#tl .ph').forEach(p=>{const sc=[...p.classList].find(c=>c.startsWith('sc-'));if(sc)p.querySelector('.glyph').innerHTML=G[SCENE_G[sc.slice(3)]]||''});
+function openSess(){
+  $('#sess').classList.add('show');
+  $$('#tl .trow').forEach(r=>r.classList.remove('in'));
+  $$('#tl .trow').forEach((r,i)=>setTimeout(()=>r.classList.add('in'),250+i*230));
+}
+document.addEventListener('click',e=>{
+  const sc=e.target.closest('.scard[data-sess]');
+  if(sc)openSess();
+  if(e.target.closest('#dnaOpen')){$('#ov').classList.remove('show');openSess()}
+});
+$('#sessClose').onclick=()=>$('#sess').classList.remove('show');
+
+/* ============ private memories ============ */
+$$('#mem .ph').forEach(p=>{const sc=[...p.classList].find(c=>c.startsWith('sc-'));if(sc)p.querySelector('.glyph').innerHTML=G[SCENE_G[sc.slice(3)]]||''});
+let pinBuf='';
+function pinPaint(){$$('#pinDots i').forEach((d,i)=>d.classList.toggle('f',i<pinBuf.length))}
+$('#memNotif').onclick=()=>{pinBuf='';pinPaint();$('#pin').classList.add('show')};
+$('#pinCancel').onclick=()=>$('#pin').classList.remove('show');
+$('#pinDel').onclick=()=>{pinBuf=pinBuf.slice(0,-1);pinPaint()};
+$('#pad').addEventListener('click',e=>{
+  const b=e.target.closest('[data-d]');if(!b||pinBuf.length>=4)return;
+  pinBuf+=b.dataset.d;pinPaint();
+  if(pinBuf.length===4)setTimeout(openMemory,350);
+});
+function memBot(html,q=false){$('#memFlow').insertAdjacentHTML('beforeend',`<div class="sb-b${q?' q':''}"><span class="av">${q?'?':'✦'}</span><div class="bt">${html}</div></div>`);$('#mem .ov-body').scrollTop=1e5}
+function memUser(t){$('#memFlow').insertAdjacentHTML('beforeend',`<div class="sb-u">${t}</div>`);$('#mem .ov-body').scrollTop=1e5}
+function memReplies(list){
+  $('#memFlow').insertAdjacentHTML('beforeend',`<div class="sb-replies">${list.map((r,i)=>`<span class="chip human" data-r="${i}">${r.t}</span>`).join('')}</div>`);
+  const el=$('#memFlow').lastElementChild;
+  el.addEventListener('click',e=>{const c=e.target.closest('[data-r]');if(!c)return;el.remove();list[+c.dataset.r].fn()});
+  $('#mem .ov-body').scrollTop=1e5;
+}
+function openMemory(){
+  $('#pin').classList.remove('show');
+  $('#memNotif').classList.add('gone');
+  $('#mem').classList.add('show');
+  $('#memFlow').innerHTML='';$('#collage').classList.remove('show');$('#memShare').classList.remove('show');
+  $$('#mem .mem-strip .ph').forEach(p=>{p.classList.remove('developed','scanline');p.classList.add('developing')});
+  $$('#mem .mem-strip .ph').forEach((p,i)=>setTimeout(()=>p.classList.add('scanline','developed'),400+i*300));
+  setTimeout(()=>{
+    memBot(`შაკო, ძმაო 🤝 ზუსტად ერთი წლის წინ ბათუმში იყავი — გიორგისთან, ზღვასთან, იმ საღამოს… <b>34 კადრი</b> შემოგინახე ამ დღიდან.`);
+  },1500);
+  setTimeout(()=>{
+    memBot(`გინდა ლამაზ კოლაჟად ავაწყო და ისე გაჩვენო, როგორც რიგია?`,true);
+  },2900);
+  setTimeout(()=>{
+    memReplies([
+      {t:'კაი ძმაო 🤝',fn:memYes},
+      {t:'მერე, ახლა ვერ',fn:memLater}
+    ]);
+  },3500);
+}
+function memYes(){
+  memUser('კაი ძმაო 🤝');
+  setTimeout(()=>{
+    memBot('წამი მომეცი… ✂️✨');
+    setTimeout(()=>{
+      $('#collage').classList.add('show');
+      $('#mem .ov-body').scrollTop=1e5;
+      setTimeout(()=>{
+        memBot('ხომ მაგარია? 🔥 რას ვუშვებით?');
+        $('#memShare').classList.add('show');
+        $('#mem .ov-body').scrollTop=1e5;
+      },1900);
+    },900);
+  },500);
+}
+function memLater(){
+  memUser('მერე, ახლა ვერ');
+  setTimeout(()=>{
+    memBot('არაუშავს, ძმაო — აქ იქნება, არსად წავა 🔒 შენს სეიფშია.');
+    setTimeout(()=>{$('#mem').classList.remove('show');toast('მოგონება სეიფში დაბრუნდა 🔒')},1800);
+  },500);
+}
+$('#shareFb').onclick=()=>{toast('კოლაჟი მზადაა გასაზიარებლად ✓ (დემო)');$('#memShare').classList.remove('show');memBot('გავუშვი მოსამზადებლად 📘 — გამოქვეყნებამდე კიდევ ერთხელ გაჩვენებ.')};
+$('#shareKeep').onclick=()=>{$('#mem').classList.remove('show');toast('შენახულია — მხოლოდ შენთვის 🔒')};
+$('#memClose').onclick=()=>$('#mem').classList.remove('show');
+
+/* ============ muza ============ */
+const COACH=[
+ 'ნისლში კონტრასტი იკარგება — <b>ექსპოზიცია +0.3…+0.7</b>-ზე ასწიე, თორემ კადრი ჩაბნელებული და ნაცრისფერი გამოვა.',
+ '<b>ავტო-HDR გამორთე</b> — ის ნისლის რბილ გრადიენტს „ასწორებს" და მთელი ატმოსფერო იკარგება.',
+ 'ნისლში <b>სილუეტები ოქროა</b> — კომპოზიციაში ერთი მუქი ობიექტი მოძებნე: ხე, ფიგურა, ბოძი. ის კადრს სიღრმეს მისცემს.'
+];
+let coachI=0;
+function coachPaint(){$('#coachTip').innerHTML=COACH[coachI];$('#coachN').textContent=`${coachI+1} / ${COACH.length}`}
+$('#coachToggle').onclick=()=>{
+  $('#coachToggle').classList.toggle('open');
+  const c=$('#coach');c.classList.toggle('show');
+  if(c.classList.contains('show'))coachPaint();
+};
+$('#coachNext').onclick=()=>{coachI=(coachI+1)%COACH.length;coachPaint()};
+$('#muzaYes').onclick=()=>{
+  $('#muzaBtns').style.display='none';
+  $('#muzaDone').classList.add('show');
+  toast('მუზამ ჩანიშნა · ხვალ 07:10 ⏰');
+};
+$('#muzaNo').onclick=()=>{
+  toast('არაუშავს — შემდეგ ნისლზე დაგირეკავ 🙂');
+  $('#muza').classList.add('gone');muzaCountDown();
+};
+
+/* ============ muza discovery ============ */
+$$('#muzaDisc .spot .ph').forEach(p=>{const sc=[...p.classList].find(c=>c.startsWith('sc-'));if(sc)p.querySelector('.glyph').innerHTML=G[SCENE_G[sc.slice(3)]]||''});
+let spotSel='უფლისციხე';
+$$('#muzaDisc .spot').forEach(s=>s.onclick=()=>{
+  $$('#muzaDisc .spot').forEach(x=>x.classList.remove('sel'));
+  s.classList.add('sel');spotSel=s.dataset.spot;
+});
+$('#discGo').onclick=()=>{
+  $('#discBtns').style.display='none';
+  $('#discDoneTxt').innerHTML=`მარშრუტი <b>${spotSel}</b>-კენ მზადაა · ოსტატიც წამოვა — ადგილზე მოგცემს რჩევას 📸`;
+  $('#discDone').classList.add('show');
+  toast(`მარშრუტი: ${spotSel} 🧭 (დემო)`);
+};
+$('#discNo').onclick=()=>{
+  toast('კარგი — შემდეგ მზიან შაბათს შეგახსენებ ☀️');
+  $('#muzaDisc').classList.add('gone');muzaCountDown();
+};
+
+/* ============ muza sheet & push ============ */
+function openMuzaSheet(){$('#push').classList.remove('show');$('#muzaSheet').classList.add('show')}
+$('#muzaRow').onclick=openMuzaSheet;
+$('#muzaSheetClose').onclick=()=>$('#muzaSheet').classList.remove('show');
+$('#push').onclick=openMuzaSheet;
+$('#pushX').onclick=e=>{e.stopPropagation();$('#push').classList.remove('show')};
+function muzaCountDown(){
+  const c=$('#muzaRowCount');let n=parseInt(c.textContent)||0;n=Math.max(0,n-1);
+  c.textContent=n===0?'ახალი არაფერია':`${n} შეთავაზება`;
+}
+
+/* ============ life threads ============ */
+$$('#thread .ph').forEach(p=>{const sc=[...p.classList].find(c=>c.startsWith('sc-'));if(sc)p.querySelector('.glyph').innerHTML=G[SCENE_G[sc.slice(3)]]||''});
+function openThread(){
+  $('#thread').classList.add('show');
+  $$('#thl .trow').forEach(r=>r.classList.remove('in'));
+  $$('#thl .trow').forEach((r,i)=>setTimeout(()=>r.classList.add('in'),250+i*210));
+}
+document.addEventListener('click',e=>{if(e.target.closest('.tcard[data-th]'))openThread()});
+$('#threadClose').onclick=()=>$('#thread').classList.remove('show');
+
+/* ============ trust slider ============ */
+const TRUST=[
+ {name:'სრული კონტროლი',emoji:'🔍',r:15,auto:0,ask:247,
+  d:'AI მხოლოდ გირჩევს — ყოველი ფოტო შენს დასტურს გაივლის. იდეალურია დასაწყისისთვის, სანამ AI-ს გაიცნობ და ენდობი.'},
+ {name:'თანამშრომლობა',emoji:'⚖️',r:27,auto:231,ask:16,
+  d:'მაღალი სანდოობის (95%+) ფოტოებს AI თავად ალაგებს, საეჭვოებს კი ინბოქსში გიგზავნის. ოქროს შუალედი — ჩვენი რჩეული.'},
+ {name:'ავტოპილოტი',emoji:'✈️',r:41,auto:245,ask:2,
+  d:'AI ყველაფერს თავად აკეთებს და მხოლოდ შედეგს გატყობინებთ. შენამდე მხოლოდ წაშლის კითხვები აღწევს.'}
+];
+function tween(el,to){
+  const from=parseInt(el.textContent)||0;const t0=performance.now();
+  const st=n=>{const p=Math.min((n-t0)/600,1);el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(st)};
+  requestAnimationFrame(st);
+}
+function paintTrust(lvl,animateNums=true){
+  const t=TRUST[lvl];
+  $('#apIris').setAttribute('r',t.r);$('#apGlow').setAttribute('r',t.r+9);
+  $('#apBlades').style.transform=`rotate(${lvl*22}deg)`;$('#apBlades').style.transformOrigin='60px 60px';$('#apBlades').style.transition='transform .7s cubic-bezier(.3,.9,.3,1)';
+  $('#tdTitle').innerHTML=`${t.name} <span style="font-size:15px">${t.emoji}</span>`;
+  $('#tdText').textContent=t.d;
+  $$('.tlabels span').forEach(s=>s.classList.toggle('on',+s.dataset.l===lvl));
+  if(animateNums){tween($('#simAuto'),t.auto);tween($('#simAsk'),t.ask)}
+  else{$('#simAuto').textContent=t.auto;$('#simAsk').textContent=t.ask}
+}
+function syncTrustMini(){
+  const t=TRUST[trustLvl];
+  $('#apIrisMini').setAttribute('r',t.r);$('#apGlowMini').setAttribute('r',t.r+9);
+  $('#trustLvlLabel').textContent=t.name;
+}
+$('#trustRow').onclick=()=>{
+  $('#tRange').value=trustLvl;paintTrust(trustLvl,false);$('#trust').classList.add('show');
+};
+$('#tRange').addEventListener('input',e=>{
+  const lvl=+e.target.value;paintTrust(lvl);
+  trustLvl=lvl;renderInbox();updateBadge();syncTrustMini();
+});
+$('#trustApply').onclick=()=>{
+  $('#trust').classList.remove('show');
+  toast(`ნდობის დონე: ${TRUST[trustLvl].name}`);
+};
+$('#trustClose').onclick=()=>$('#trust').classList.remove('show');
+syncTrustMini();
+
+/* ============ onboarding ============ */
+const ONB_SCENES=['sea','mtn','portrait','doc','bday','forest','city','snow','food'];
+$('#chaosBox').innerHTML=ONB_SCENES.map((sc,i)=>{
+  const x=[8,58,64,3,40,70,20,48,32][i], y=[6,2,42,52,26,66,66,54,10][i], r=[-14,9,-6,12,-3,15,-11,5,8][i];
+  return `<div class="ph sc-${sc}" style="left:${x}%;top:${y}%;transform:rotate(${r}deg)"><span class="glyph">${G[SCENE_G[sc]]}</span></div>`;
+}).join('');
+$('#orderGrid').innerHTML=ONB_SCENES.map((sc,i)=>
+  `<div class="ph sc-${sc}" style="--rr:${(i%2?-1:1)*(8+i)}deg;--dd:${i*90}ms"><span class="glyph">${G[SCENE_G[sc]]}</span></div>`).join('');
+$('#scanPh .glyph').innerHTML=G.mtn;
+$('#onbSteps').innerHTML=PSTEPS.map((s,i)=>`<div class="pstep os" data-i="${i}"><span class="ic">•</span>${s}</div>`).join('');
+$('#onbDots').innerHTML='<i></i>'.repeat(4);
+
+let onbI=0, typeTimer=null, scanRan=false;
+function onbGo(i){
+  onbI=i;
+  $$('.oslide').forEach(s=>s.classList.toggle('active',+s.dataset.s===i));
+  const pitch=i>=1&&i<=4;
+  $('#onbDots').style.visibility=pitch?'visible':'hidden';
+  $('#onbSkip').style.visibility=pitch?'visible':'hidden';
+  if(pitch)$$('#onbDots i').forEach((d,k)=>d.classList.toggle('on',k===i-1));
+  if(i===0){setTimeout(()=>{$('#splashLogo').classList.add('scanline','developed')},300);setTimeout(()=>{if(onbI===0)onbGo(1)},2300)}
+  if(i===3)runTypeDemo();
+  if(i===5)breatheAperture();
+  if(i===8)paintTrustOnb(+$('#tRangeOnb').value);
+  if(i===9&&!scanRan){scanRan=true;runFirstScan()}
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('.onb-next'))onbGo(onbI+1);
+});
+$('#onbSkip').onclick=()=>onbGo(5);
+
+function runTypeDemo(){
+  clearTimeout(typeTimer);
+  const txt='ზღვის ფოტოები გიორგისთან';
+  const el=$('#typeTxt');el.textContent='';$('#onbResp').classList.remove('show');
+  let k=0;
+  const step=()=>{if(onbI!==3)return;
+    el.textContent=txt.slice(0,++k);
+    if(k<txt.length)typeTimer=setTimeout(step,65);
+    else typeTimer=setTimeout(()=>$('#onbResp').classList.add('show'),450);
+  };
+  typeTimer=setTimeout(step,600);
+}
+function breatheAperture(){
+  let open=true;
+  const cycle=()=>{if(onbI!==5)return;
+    $('#apIrisOnb').setAttribute('r',open?20:40);$('#apGlowOnb').setAttribute('r',open?29:49);
+    open=!open;setTimeout(cycle,1600)};
+  cycle();
+}
+function paintTrustOnb(lvl){
+  const t=TRUST[lvl];
+  $('#tdTitleOnb').innerHTML=`${t.name} <span style="font-size:15px">${t.emoji}</span>`;
+  $('#tdTextOnb').textContent=t.d;
+  $$('#tlabelsOnb span').forEach(s=>s.classList.toggle('on',+s.dataset.l===lvl));
+}
+$('#tRangeOnb').addEventListener('input',e=>{
+  const lvl=+e.target.value;paintTrustOnb(lvl);
+  trustLvl=lvl;renderInbox();updateBadge();syncTrustMini();
+});
+function runFirstScan(){
+  setTimeout(()=>$('#scanPh').classList.add('scanline','developed'),350);
+  const n=$('#scanN');const t0=performance.now();const total=12304;const dur=4200;
+  const cnt=t=>{const p=Math.min((t-t0)/dur,1);n.textContent=Math.round(total*(1-Math.pow(1-p,2))).toLocaleString();if(p<1)requestAnimationFrame(cnt)};
+  requestAnimationFrame(cnt);
+  PSTEPS.forEach((_,i)=>{
+    setTimeout(()=>{
+      $$('.pstep.os').forEach(p=>p.classList.remove('run'));
+      const el=$(`.pstep.os[data-i="${i}"]`);el.classList.add('run');
+      setTimeout(()=>{el.classList.remove('run');el.classList.add('done');el.querySelector('.ic').textContent='✓';
+        if(i===PSTEPS.length-1){
+          $('#scanTitle').innerHTML='<em>მზადაა!</em> აი, რა ვიპოვე';
+          $('#scanResult').classList.add('show');
+        }
+      },700);
+    },i*820+300);
+  });
+}
+$('#onbFinish').onclick=()=>{
+  $('#onb').classList.add('hide');go('home');
+  setTimeout(()=>toast('მოგესალმები, შაკო ✨'),600);
+  setTimeout(()=>$('#push').classList.add('show'),3800);
+};
+
+/* ============ demo tour ============ */
+const TOUR=[
+ {s:'home',t:'ეს Control Center-ია — სცადე „AI დამუშავება" ან „ქაოსის განულება" ⟲'},
+ {s:'inbox',t:'ინბოქსი: AI გირჩევს, შენ ადასტურებ. წაშალე რამე და მერე „გაუქმება" დააჭირე — ყველაფერი უკუქცევადია'},
+ {s:'sess',t:'სესიები და Life Threads: გახსენი № 27 — დღე ფილმად იშლება 🎬'},
+ {s:'lib',t:'ბიბლიოთეკა: სარდაფები, ალბომები, ფილტრები. ნებისმიერ ფოტოზე დაჭერით — Photo DNA 🧬'},
+ {s:'search',t:'Second Brain: დააჭირე 🧠 ჩიპს და უპასუხე „წვიმდა" — AI ამინდით გიპოვის მოგონებას'},
+ {s:'chat',t:'ასისტენტი: სცადე „მივდივარ რიოში 🇧🇷" — ფოტო-დაზვერვის კლიპი აგეწყობა'},
+ {s:'home',t:'და ფინალი: 🔒 პირადი მოგონება — PIN: ნებისმიერი 4 ციფრი. კაი ძმაო 🤝'}
+];
+let tourI=0;
+function tourGo(i){tourI=i;const st=TOUR[i];go(st.s);
+  $('#tourN').textContent=`ტური · ${i+1}/${TOUR.length}`;$('#tourTxt').textContent=st.t;
+  $('#tourbox').classList.add('show');}
+$('#tourBtn')&&($('#tourBtn').onclick=()=>{$('#onb').classList.add('hide');$('#push').classList.remove('show');tourGo(0)});
+$('#tourNext').onclick=()=>{if(tourI<TOUR.length-1)tourGo(tourI+1);else{$('#tourbox').classList.remove('show');toast('ტური დასრულდა — ახლა შენით იმოგზაურე ✨')}};
+$('#tourEnd').onclick=()=>$('#tourbox').classList.remove('show');
+
+/* ============ boot ============ */
+go('home');
+onbGo(0);
+</script>
+</body>
+</html>
